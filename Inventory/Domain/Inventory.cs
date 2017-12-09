@@ -62,7 +62,7 @@ namespace Domain
             Product product = GetProductById(productId);
             product.IncreaseProductStock(amountToIncrease);
 
-            _events.Add(new ProductMarkedForSaleEvent(Id.Value, productId.Value));
+            _events.Add(new ProductStockIncreasedEvent(Id.Value, productId.Value, product.Stock.Quantity));
         }
 
         public void DecreaseProductStock(ProductId productId, int amountToDecrease)
@@ -70,7 +70,7 @@ namespace Domain
             Product product = GetProductById(productId);
             product.DecreaseProductStock(amountToDecrease);
 
-            _events.Add(new ProductStockDecreasedEvent(Id.Value, productId.Value, amountToDecrease));
+            _events.Add(new ProductStockDecreasedEvent(Id.Value, productId.Value, product.Stock.Quantity));
         }
 
         public void MarkProductForSale(ProductId productId)
