@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Domain.Commands;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ViewModels;
@@ -17,11 +18,13 @@ namespace Api.Controllers
     {
         private readonly ICommandAsyncDispatcher _commandDispatcher;
         private readonly IQueryAsyncDispatcher _queryDispatcher;
+        private readonly Guid _inventoryIdFromConfiguration;
         
-        public ProductController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher)
+        public ProductController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher, IConfiguration configuration)
         {
             _commandDispatcher = commandDispatcher;
             _queryDispatcher = queryDispatcher;
+            _inventoryIdFromConfiguration = configuration.GetSection("Inventory").GetValue<Guid>("InventoryId");
         }
 
         [HttpGet]
@@ -32,14 +35,16 @@ namespace Api.Controllers
                 includeNotForSale = false;
             }
 
-            ProductListView result = await _queryDispatcher.DispatchAsync<GetAllProductsQuery, ProductListView>(new GetAllProductsQuery(includeNotForSale.Value));
+            ProductListViewModel result = await _queryDispatcher.DispatchAsync<GetAllProductsQuery, ProductListViewModel>(
+                                                    new GetAllProductsQuery(includeNotForSale.Value));
+                                                    
             return Ok(result);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProduct(Guid id)
         {
-            ProductView result = await _queryDispatcher.DispatchAsync<GetProductByIdQuery, ProductView>(new GetProductByIdQuery(id));
+            ProductViewModel result = await _queryDispatcher.DispatchAsync<GetProductByIdQuery, ProductViewModel>(new GetProductByIdQuery(id));
             return Ok(result);
         }
 
@@ -51,7 +56,7 @@ namespace Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
             return Ok();
         }
 
@@ -63,7 +68,7 @@ namespace Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
             return Ok();
         }
 
@@ -131,14 +136,14 @@ namespace Api.Controllers
         private async Task<IActionResult> InternalAddProductToCatalog(JObject jsonPayload)
         {
             var dto = JsonConvert.DeserializeObject<AddProductToCatalogCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
             return Ok();
         }
 
         private async Task<IActionResult> InternalRemoveProductFromCatalog(JObject jsonPayload)
         {
             var dto = JsonConvert.DeserializeObject<RemoveProductFromCatalogCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
             return Ok();
         }
     }
@@ -147,26 +152,24 @@ namespace Api.Controllers
 
     public class RegisterNewProductCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
         public string ProductName { get; set; }
         public string ProductDescription { get; set; }
         public decimal ProductPrice { get; set; }
 
-        public RegisterNewProductCommand ToDomainCommand()
+        public RegisterNewProductCommand ToDomainCommand(Guid inventoryId)
         {
-            return new RegisterNewProductCommand(InventoryId, ProductId, ProductName, ProductDescription, ProductPrice);
+            return new RegisterNewProductCommand(inventoryId, ProductId, ProductName, ProductDescription, ProductPrice);
         }
     }
 
     public class UnregisterProductCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
 
-        public UnregisterProductCommand ToDomainCommand()
+        public UnregisterProductCommand ToDomainCommand(Guid inventoryId)
         {
-            return new UnregisterProductCommand(InventoryId, ProductId);
+            return new UnregisterProductCommand(inventoryId, ProductId);
         }
     }
 
@@ -181,59 +184,54 @@ namespace Api.Controllers
 
     public class MarkProductAsForSaleCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
 
         public MarkProductAsForSaleCommand ToDomainCommand()
         {
-            return new MarkProductAsForSaleCommand(InventoryId, ProductId);
+            return new MarkProductAsForSaleCommand(ProductId);
         }
     }
 
     public class MarkProductAsNotForSaleCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
 
         public MarkProductAsNotForSaleCommand ToDomainCommand()
         {
-            return new MarkProductAsNotForSaleCommand(InventoryId, ProductId);
+            return new MarkProductAsNotForSaleCommand(ProductId);
         }
     }
 
     public class RepriceProductCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
         public decimal NewPrice { get; set; }
 
         public RepriceProductCommand ToDomainCommand()
         {
-            return new RepriceProductCommand(InventoryId, ProductId, NewPrice);
+            return new RepriceProductCommand(ProductId, NewPrice);
         }
     }
 
     public class AddProductToCatalogCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
         public string CatalogName { get; set; }
 
-        public AddProductToCatalogCommand ToDomainCommand()
+        public AddProductToCatalogCommand ToDomainCommand(Guid inventoryId)
         {
-            return new AddProductToCatalogCommand(InventoryId, ProductId, CatalogName);
+            return new AddProductToCatalogCommand(inventoryId, ProductId, CatalogName);
         }
     }
 
     public class RemoveProductFromCatalogCommandDto
     {
-        public Guid InventoryId { get; set; }
         public Guid ProductId { get; set; }
         public string CatalogName { get; set; }
 
-        public RemoveProductFromCatalogCommand ToDomainCommand()
+        public RemoveProductFromCatalogCommand ToDomainCommand(Guid inventoryId)
         {
-            return new RemoveProductFromCatalogCommand(InventoryId, ProductId, CatalogName);
+            return new RemoveProductFromCatalogCommand(inventoryId, ProductId, CatalogName);
         }
     }
 

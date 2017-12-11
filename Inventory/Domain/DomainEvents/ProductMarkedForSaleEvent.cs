@@ -5,13 +5,13 @@ namespace Domain.DomainEvents
 {
     public class ProductMarkedForSaleEvent : IEvent
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
+        public Guid InventoryId { get; }
 
-        public ProductMarkedForSaleEvent(Guid inventoryId, Guid productId)
+        public ProductMarkedForSaleEvent(Guid productId, Guid inventoryId)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
+            InventoryId = inventoryId;
         }
     }
 }

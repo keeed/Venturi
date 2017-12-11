@@ -8,36 +8,34 @@ namespace Domain.Commands
 {
     public class MarkProductAsNotForSaleCommand : Command
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
 
-        public MarkProductAsNotForSaleCommand(Guid inventoryId, Guid productId)
+        public MarkProductAsNotForSaleCommand(Guid productId)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
         }
     }
 
     public class MarkProductAsNotForSaleCommandHandler : ICommandAsyncHandler<MarkProductAsNotForSaleCommand>
     {
-        private readonly IRepository<Inventory, InventoryId> _inventoryRepository;
+        private readonly IRepository<Product, ProductId> _productRepository;
 
-        public MarkProductAsNotForSaleCommandHandler(IRepository<Inventory, InventoryId> inventoryRepository)
+        public MarkProductAsNotForSaleCommandHandler(IRepository<Product, ProductId> productRepository)
         {
-            _inventoryRepository = inventoryRepository;
+            _productRepository = productRepository;
         }
 
         public async Task HandleAsync(MarkProductAsNotForSaleCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Inventory inventory = await _inventoryRepository.GetByIdAsync(new InventoryId(command.InventoryId), cancellationToken).ConfigureAwait(false);
-            if (inventory == null)
+            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            if (product == null)
             {
-                throw new InvalidOperationException("Inventory not found.");
+                throw new InvalidOperationException("Product not found.");
             }
 
-            inventory.MarkProductAsNotForSale(new ProductId(command.ProductId));
+            product.MarkNotForSale();
 
-            await _inventoryRepository.SaveAsync(inventory, cancellationToken).ConfigureAwait(false);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }
     }
 }

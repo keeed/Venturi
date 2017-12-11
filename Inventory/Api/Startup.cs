@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Domain;
 using Domain.Commands;
 using Domain.DomainEvents;
+using Domain.ProcessManagers;
 using Domain.Repositories;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Builder;
@@ -98,15 +99,13 @@ namespace Api
         {
             try
             {
-                IConfigurationSection inventoryConfig = Configuration.GetSection("Inventory");
-
-                string configuredInventoryId = inventoryConfig["InventoryId"];
+                string configuredInventoryId = InventoryConfiguration["InventoryId"];
                 InventoryId inventoryId = new InventoryId(Guid.Parse(configuredInventoryId));
 
                 Inventory inventory = await inventoryRepository.GetByIdAsync(inventoryId);
                 if (inventory == null)
                 {
-                    string configuredWarehouseId = inventoryConfig["WarehouseId"];
+                    string configuredWarehouseId = InventoryConfiguration["WarehouseId"];
                     WarehouseId warehouseId = new WarehouseId(Guid.Parse(configuredWarehouseId));
 
                     await inventoryRepository.SaveAsync(new Inventory(inventoryId, warehouseId));
@@ -121,10 +120,16 @@ namespace Api
         private void RegisterDomainRepositories(IServiceCollection services)
         {
             // Register mongo repository.
-            services.AddSingleton<IRepository<Inventory, InventoryId>>(s => 
+            services.AddScoped<IRepository<Inventory, InventoryId>>(s => 
             {
                 return new PublisingRepository<Inventory, InventoryId>(new InventoryMongoRepository(s.GetRequiredService<IMongoClient>()),
                                                                        s.GetRequiredService<IEventPublisher>());
+            });
+
+            services.AddScoped<IRepository<Product, ProductId>>(s => 
+            {
+                return new PublisingRepository<Product, ProductId>(new ProductMongoRepository(s.GetRequiredService<IMongoClient>()),
+                                                                   s.GetRequiredService<IEventPublisher>());
             });
         }
 
@@ -154,16 +159,20 @@ namespace Api
 
         private void RegisterEventHandlers(IServiceCollection services)
         {
-            // Register all event handlers here.
-            services.AddTransient<IEventAsyncHandler<ProductRegisteredEvent>, ProductViewProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductUnregisteredEvent>, ProductViewProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductMarkedForSaleEvent>, ProductViewProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductMarkedNotForSaleEvent>, ProductViewProjector>();
+            // Register all domain event handlers here.
+            services.AddTransient<IEventAsyncHandler<ProductRegisteredEvent>, ProductLifetimeManagement>();
+            services.AddTransient<IEventAsyncHandler<ProductUnregisteredEvent>, ProductLifetimeManagement>();
             
-            services.AddTransient<IEventAsyncHandler<CatalogCreatedEvent>, ProductCatalogViewProjector>();
-            services.AddTransient<IEventAsyncHandler<CatalogDeletedEvent>, ProductCatalogViewProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductAddedToCatalogEvent>, ProductCatalogViewProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductRemovedFromCatalogEvent>, ProductCatalogViewProjector>();
+            // Register all query event handlers here.
+            services.AddTransient<IEventAsyncHandler<ProductRegisteredEvent>, ProductViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductUnregisteredEvent>, ProductViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductMarkedForSaleEvent>, ProductViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductMarkedNotForSaleEvent>, ProductViewModelProjector>();
+            
+            services.AddTransient<IEventAsyncHandler<CatalogCreatedEvent>, ProductCatalogViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<CatalogDeletedEvent>, ProductCatalogViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductAddedToCatalogEvent>, ProductCatalogViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductRemovedFromCatalogEvent>, ProductCatalogViewModelProjector>();
             
             // To enable event publisher to resolve event handlers from the ASP.NET core IoC container.
             services.AddSingleton<IEventHandlerResolver, ContainerEventHandlerResolver>();
@@ -176,10 +185,10 @@ namespace Api
         private void RegisterQueryHandlers(IServiceCollection services)
         {
             // Register all query handlers.
-            services.AddTransient<IQueryAsyncHandler<GetAllProductsQuery, ProductListView>, GetAllProductsQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetProductByIdQuery, ProductView>, GetProductByIdQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetProductsInCatalogQuery, ProductCatalogView>, GetProductsInCatalogQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetAllCatalogsQuery, ProductCatalogListView>, GetAllCatalogsQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetAllProductsQuery, ProductListViewModel>, GetAllProductsQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetProductByIdQuery, ProductViewModel>, GetProductByIdQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetProductsInCatalogQuery, ProductCatalogViewModel>, GetProductsInCatalogQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetAllCatalogsQuery, ProductCatalogListViewModel>, GetAllCatalogsQueryHandler>();
                         
             // To enable event publisher to resolve event handlers from the ASP.NET core IoC container.
             services.AddSingleton<IQueryHandlerResolver, ContainerQueryHandlerResolver>();

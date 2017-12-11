@@ -6,7 +6,7 @@ using Xer.Cqrs.QueryStack;
 
 namespace ViewModels.Queries
 {
-    public class GetProductByIdQuery : IQuery<ProductView>
+    public class GetProductByIdQuery : IQuery<ProductViewModel>
     {
         public Guid ProductId { get; }
 
@@ -16,20 +16,20 @@ namespace ViewModels.Queries
         }
     }
 
-    public class GetProductByIdQueryHandler : IQueryAsyncHandler<GetProductByIdQuery, ProductView>
+    public class GetProductByIdQueryHandler : IQueryAsyncHandler<GetProductByIdQuery, ProductViewModel>
     {
-        private readonly IMongoCollection<ProductView> _productViewCollection;
+        private readonly IMongoCollection<ProductViewModel> _productViewCollection;
 
         public GetProductByIdQueryHandler(IMongoClient mongoClient)
         {
             IMongoDatabase mongoDb = mongoClient.GetDatabase(Constants.MongoDatabaseName);
-            _productViewCollection = mongoDb.GetCollection<ProductView>(nameof(ProductView));
+            _productViewCollection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
-        public async Task<ProductView> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<ProductViewModel> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductView>.Filter.Eq(p => p.ProductId, query.ProductId);
-            IAsyncCursor<ProductView> result = await _productViewCollection.FindAsync(filter, null, cancellationToken).ConfigureAwait(false);
+            var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, query.ProductId);
+            IAsyncCursor<ProductViewModel> result = await _productViewCollection.FindAsync(filter, null, cancellationToken).ConfigureAwait(false);
             return await result.FirstOrDefaultAsync();
         }
     }

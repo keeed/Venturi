@@ -8,7 +8,7 @@ using Xer.Cqrs.EventStack;
 
 namespace ViewModels
 {
-    public class ProductView
+    public class ProductViewModel
     {
         [BsonId]
         public Guid ProductId { get; set; }
@@ -19,23 +19,23 @@ namespace ViewModels
         public bool IsProductForSale { get; set; }
     }
 
-    public class ProductViewProjector : IEventAsyncHandler<ProductRegisteredEvent>,
-                                        IEventAsyncHandler<ProductUnregisteredEvent>,
-                                        IEventAsyncHandler<ProductMarkedForSaleEvent>,
-                                        IEventAsyncHandler<ProductMarkedNotForSaleEvent>,
-                                        IEventAsyncHandler<ProductRepricedEvent>
+    public class ProductViewModelProjector : IEventAsyncHandler<ProductRegisteredEvent>,
+                                             IEventAsyncHandler<ProductUnregisteredEvent>,
+                                             IEventAsyncHandler<ProductMarkedForSaleEvent>,
+                                             IEventAsyncHandler<ProductMarkedNotForSaleEvent>,
+                                             IEventAsyncHandler<ProductRepricedEvent>
     {
-        private readonly IMongoCollection<ProductView> _productViewCollection;
+        private readonly IMongoCollection<ProductViewModel> _productViewCollection;
 
-        public ProductViewProjector(IMongoClient mongoClient)
+        public ProductViewModelProjector(IMongoClient mongoClient)
         {
             IMongoDatabase mongoDb = mongoClient.GetDatabase(Constants.MongoDatabaseName);
-            _productViewCollection = mongoDb.GetCollection<ProductView>(nameof(ProductView));
+            _productViewCollection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
         public Task HandleAsync(ProductRegisteredEvent @event, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return _productViewCollection.InsertOneAsync(new ProductView()
+            return _productViewCollection.InsertOneAsync(new ProductViewModel()
             {
                 InventoryId = @event.InventoryId,
                 ProductId = @event.ProductId,
@@ -48,28 +48,28 @@ namespace ViewModels
 
         public Task HandleAsync(ProductUnregisteredEvent @event, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductView>.Filter.Eq(p => p.ProductId, @event.ProductId);
+            var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, @event.ProductId);
             return _productViewCollection.DeleteOneAsync(filter, cancellationToken);
         }
 
         public Task HandleAsync(ProductMarkedForSaleEvent @event, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductView>.Filter.Eq(p => p.ProductId, @event.ProductId);
-            var update = Builders<ProductView>.Update.Set(p => p.IsProductForSale, true); // For sale.
+            var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, @event.ProductId);
+            var update = Builders<ProductViewModel>.Update.Set(p => p.IsProductForSale, true); // For sale.
             return _productViewCollection.FindOneAndUpdateAsync(filter, update, null, cancellationToken);
         }
 
         public Task HandleAsync(ProductMarkedNotForSaleEvent @event, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductView>.Filter.Eq(p => p.ProductId, @event.ProductId);
-            var update = Builders<ProductView>.Update.Set(p => p.IsProductForSale, false); // Not for sale.
+            var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, @event.ProductId);
+            var update = Builders<ProductViewModel>.Update.Set(p => p.IsProductForSale, false); // Not for sale.
             return _productViewCollection.FindOneAndUpdateAsync(filter, update, null, cancellationToken);
         }
 
         public Task HandleAsync(ProductRepricedEvent @event, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductView>.Filter.Eq(p => p.ProductId, @event.ProductId);
-            var update = Builders<ProductView>.Update.Set(p => p.ProductPrice, @event.NewPrice);
+            var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, @event.ProductId);
+            var update = Builders<ProductViewModel>.Update.Set(p => p.ProductPrice, @event.NewPrice);
             return _productViewCollection.FindOneAndUpdateAsync(filter, update, null, cancellationToken);
         }
     }

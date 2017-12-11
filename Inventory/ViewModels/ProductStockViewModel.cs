@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace ViewModels
 {
-    public class ProductStockView
+    public class ProductStockViewModel
     {
         [BsonId]
         public Guid ProductId { get; set; }

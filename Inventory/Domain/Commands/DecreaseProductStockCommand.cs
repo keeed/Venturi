@@ -22,24 +22,24 @@ namespace Domain.Commands
 
     public class DecreaseProductStockCommandHandler : ICommandAsyncHandler<DecreaseProductStockCommand>
     {
-        private readonly IRepository<Inventory, InventoryId> _inventoryRepository;
+        private readonly IRepository<Product, ProductId> _productRepository;
 
-        public DecreaseProductStockCommandHandler(IRepository<Inventory, InventoryId> inventoryRepository)
+        public DecreaseProductStockCommandHandler(IRepository<Product, ProductId> productRepository)
         {
-            _inventoryRepository = inventoryRepository;
+            _productRepository = productRepository;
         }
 
         public async Task HandleAsync(DecreaseProductStockCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Inventory inventory = await _inventoryRepository.GetByIdAsync(new InventoryId(command.InventoryId), cancellationToken).ConfigureAwait(false);
-            if (inventory == null)
+            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            if (product == null)
             {
-                throw new InvalidOperationException("Inventory not found.");
+                throw new InvalidOperationException("Product not found.");
             }
             
-            inventory.DecreaseProductStock(new ProductId(command.ProductId), command.AmountToDecrease);
+            product.DecreaseProductStock(command.AmountToDecrease);
 
-            await _inventoryRepository.SaveAsync(inventory, cancellationToken).ConfigureAwait(false);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }
     }
 }

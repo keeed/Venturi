@@ -5,13 +5,13 @@ namespace Domain.DomainEvents
 {
     public class ProductMarkedNotForSaleEvent : IEvent
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
+        public Guid InventoryId { get; }
 
-        public ProductMarkedNotForSaleEvent(Guid InventoryId, Guid productId)
+        public ProductMarkedNotForSaleEvent(Guid productId, Guid inventoryId)
         {
-            this.InventoryId = InventoryId;
             ProductId = productId;
+            InventoryId = inventoryId;
         }
     }
 }

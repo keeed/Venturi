@@ -8,36 +8,34 @@ namespace Domain.Commands
 {
     public class MarkProductAsForSaleCommand : Command
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
 
-        public MarkProductAsForSaleCommand(Guid inventoryId, Guid productId)
+        public MarkProductAsForSaleCommand(Guid productId)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
         }
     }
 
     public class MarkProductAsForSaleCommandHandler : ICommandAsyncHandler<MarkProductAsForSaleCommand>
     {
-        private readonly IRepository<Inventory, InventoryId> _inventoryRepository;
+        private readonly IRepository<Product, ProductId> _productRepository;
 
-        public MarkProductAsForSaleCommandHandler(IRepository<Inventory, InventoryId> inventoryRepository)
+        public MarkProductAsForSaleCommandHandler(IRepository<Product, ProductId> productRepository)
         {
-            _inventoryRepository = inventoryRepository;
+            _productRepository = productRepository;
         }
 
         public async Task HandleAsync(MarkProductAsForSaleCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Inventory inventory = await _inventoryRepository.GetByIdAsync(new InventoryId(command.InventoryId), cancellationToken).ConfigureAwait(false);
-            if (inventory == null)
+            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            if (product == null)
             {
-                throw new InvalidOperationException("Inventory not found.");
+                throw new InvalidOperationException("Product not found.");
             }
 
-            inventory.MarkProductForSale(new ProductId(command.ProductId));
+            product.MarkForSale();
 
-            await _inventoryRepository.SaveAsync(inventory, cancellationToken).ConfigureAwait(false);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }
     }
 }

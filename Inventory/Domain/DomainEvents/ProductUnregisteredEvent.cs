@@ -8,10 +8,10 @@ namespace Domain.DomainEvents
         public Guid InventoryId { get; }
         public Guid ProductId { get; }
 
-        public ProductUnregisteredEvent(Guid inventoryId, Guid productId)
+        public ProductUnregisteredEvent(Guid productId, Guid inventoryId)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
+            InventoryId = inventoryId;
         }
     }
 }

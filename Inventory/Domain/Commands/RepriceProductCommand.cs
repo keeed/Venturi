@@ -8,13 +8,11 @@ namespace Domain.Commands
 {
     public class RepriceProductCommand : Command
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
         public decimal NewPrice { get; }
 
-        public RepriceProductCommand(Guid inventoryId, Guid productId, decimal newPrice)
+        public RepriceProductCommand(Guid productId, decimal newPrice)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
             NewPrice = newPrice;
         }
@@ -22,24 +20,24 @@ namespace Domain.Commands
 
     public class RepriceProductCommandHandler : ICommandAsyncHandler<RepriceProductCommand>
     {
-        private readonly IRepository<Inventory, InventoryId> _inventoryRepository;
-        
-        public RepriceProductCommandHandler(IRepository<Inventory, InventoryId> inventoryRepository)
+        private readonly IRepository<Product, ProductId> _productRepository;
+
+        public RepriceProductCommandHandler(IRepository<Product, ProductId> productRepository)
         {
-            _inventoryRepository = inventoryRepository;
+            _productRepository = productRepository;
         }
 
         public async Task HandleAsync(RepriceProductCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Inventory inventory = await _inventoryRepository.GetByIdAsync(new InventoryId(command.InventoryId), cancellationToken).ConfigureAwait(false);
-            if(inventory == null)
+            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            if (product == null)
             {
-                throw new InvalidOperationException("Inventory not found.");
+                throw new InvalidOperationException("Product not found.");
             }
 
-            inventory.RepriceProduct(new ProductId(command.ProductId), command.NewPrice);
+            product.Reprice(command.NewPrice);
 
-            await _inventoryRepository.SaveAsync(inventory, cancellationToken).ConfigureAwait(false);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }
     }
 }

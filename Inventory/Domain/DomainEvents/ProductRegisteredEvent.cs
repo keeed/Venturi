@@ -11,14 +11,14 @@ namespace Domain.DomainEvents
         public string ProductDescription { get; }
         public decimal ProductPrice { get; }
 
-        public ProductRegisteredEvent(Guid inventoryId, 
-                                      Guid productId, 
+        public ProductRegisteredEvent(Guid productId, 
+                                      Guid inventoryId, 
                                       string productName, 
                                       string productDescription, 
                                       decimal productPrice)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
+            InventoryId = inventoryId;
             ProductName = productName;
             ProductDescription = productDescription;
             ProductPrice = productPrice;

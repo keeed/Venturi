@@ -5,7 +5,7 @@ using Xer.Cqrs.QueryStack;
 
 namespace ViewModels.Queries
 {
-    public class GetProductsInCatalogQuery : IQuery<ProductCatalogView>
+    public class GetProductsInCatalogQuery : IQuery<ProductCatalogViewModel>
     {
         public string CatalogName { get; }
 
@@ -15,20 +15,20 @@ namespace ViewModels.Queries
         }
     }
 
-    public class GetProductsInCatalogQueryHandler : IQueryAsyncHandler<GetProductsInCatalogQuery, ProductCatalogView>
+    public class GetProductsInCatalogQueryHandler : IQueryAsyncHandler<GetProductsInCatalogQuery, ProductCatalogViewModel>
     {
-        private readonly IMongoCollection<ProductCatalogView> _productCatalogViewCollection;
+        private readonly IMongoCollection<ProductCatalogViewModel> _productCatalogViewCollection;
 
         public GetProductsInCatalogQueryHandler(IMongoClient mongoClient)
         {
             IMongoDatabase mongoDb = mongoClient.GetDatabase(Constants.MongoDatabaseName);
-            _productCatalogViewCollection = mongoDb.GetCollection<ProductCatalogView>(nameof(ProductCatalogView));
+            _productCatalogViewCollection = mongoDb.GetCollection<ProductCatalogViewModel>(nameof(ProductCatalogViewModel));
         }
 
-        public async Task<ProductCatalogView> HandleAsync(GetProductsInCatalogQuery query, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<ProductCatalogViewModel> HandleAsync(GetProductsInCatalogQuery query, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var filter = Builders<ProductCatalogView>.Filter.Eq(pcv => pcv.CatalogName, query.CatalogName);
-            IAsyncCursor<ProductCatalogView> findResult = await _productCatalogViewCollection.FindAsync(filter, null, cancellationToken);
+            var filter = Builders<ProductCatalogViewModel>.Filter.Eq(pcv => pcv.CatalogName, query.CatalogName);
+            IAsyncCursor<ProductCatalogViewModel> findResult = await _productCatalogViewCollection.FindAsync(filter, null, cancellationToken);
             return await findResult.FirstOrDefaultAsync(); 
         }
     }

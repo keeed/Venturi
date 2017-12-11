@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Domain.Commands;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using ViewModels;
 using ViewModels.Queries;
 using Xer.Cqrs.CommandStack;
@@ -14,24 +15,26 @@ namespace Api.Controllers
     {
         private readonly ICommandAsyncDispatcher _commandDispatcher;
         private readonly IQueryAsyncDispatcher _queryDispatcher;
+        private readonly Guid _inventoryIdFromConfiguration;
 
-        public CatalogController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher)
+        public CatalogController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher, IConfiguration configuration)
         {
             _commandDispatcher = commandDispatcher;
             _queryDispatcher = queryDispatcher;
+            _inventoryIdFromConfiguration = configuration.GetSection("Inventory").GetValue<Guid>("InventoryId");
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAllCatalogs()
         {
-            ProductCatalogListView result = await _queryDispatcher.DispatchAsync<GetAllCatalogsQuery, ProductCatalogListView>(new GetAllCatalogsQuery());
+            ProductCatalogListViewModel result = await _queryDispatcher.DispatchAsync<GetAllCatalogsQuery, ProductCatalogListViewModel>(new GetAllCatalogsQuery());
             return Ok(result);
         }
 
         [HttpGet("{catalogName}")]
         public async Task<IActionResult> GetCatalog(string catalogName)
         {
-            ProductCatalogView result = await _queryDispatcher.DispatchAsync<GetProductsInCatalogQuery, ProductCatalogView>(
+            ProductCatalogViewModel result = await _queryDispatcher.DispatchAsync<GetProductsInCatalogQuery, ProductCatalogViewModel>(
                 new GetProductsInCatalogQuery(catalogName));
             return Ok(result);
         }
@@ -44,7 +47,7 @@ namespace Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
 
             return Ok();
         }
@@ -57,7 +60,7 @@ namespace Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
 
             return Ok();
         }
@@ -67,23 +70,21 @@ namespace Api.Controllers
 
     public class CreateCatalogCommandDto
     {
-        public Guid InventoryId { get; set; }
         public string CatalogName { get; set; }
 
-        public CreateCatalogCommand ToDomainCommand()
+        public CreateCatalogCommand ToDomainCommand(Guid inventoryId)
         {
-            return new CreateCatalogCommand(InventoryId, CatalogName);
+            return new CreateCatalogCommand(inventoryId, CatalogName);
         }
     }
 
     public class DeleteCatalogCommandDto
     {
-        public Guid InventoryId { get; set; }
         public string CatalogName { get; set; }
 
-        public DeleteCatalogCommand ToDomainCommand()
+        public DeleteCatalogCommand ToDomainCommand(Guid inventoryId)
         {
-            return new DeleteCatalogCommand(InventoryId, CatalogName);
+            return new DeleteCatalogCommand(inventoryId, CatalogName);
         }
     }
 

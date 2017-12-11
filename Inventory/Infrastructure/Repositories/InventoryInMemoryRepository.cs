@@ -23,12 +23,10 @@ namespace Infrastructure.Repositories
             }
 
             var storedInventory = _inventories.FirstOrDefault(i => i.Id == inventoryId);
-            
+            var state = storedInventory.GetCurrentState();
              // Make a copy to return as result.
-            return Task.FromResult(new Inventory(storedInventory.Id, 
-                                                 storedInventory.WarehouseId, 
-                                                 storedInventory.Products, 
-                                                 storedInventory.Catalogs));
+            return Task.FromResult(new Inventory(state.InventoryId, 
+                                                 state.WarehouseId));
         }
 
         public Task SaveAsync(Inventory inventory, CancellationToken ct = default(CancellationToken))

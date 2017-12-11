@@ -22,28 +22,35 @@ namespace Infrastructure.Repositories
 
         public async Task<Inventory> GetByIdAsync(InventoryId productId, CancellationToken ct = default(CancellationToken))
         {
-            var filter = Builders<InventoryMongoDocument>.Filter.Eq(i => i.Id, productId.Value);
+            var filter = Builders<InventoryMongoDocument>.Filter.Eq(i => i.InventoryId, productId.Value);
             IAsyncCursor<InventoryMongoDocument> findResult = await _inventoryCollection.FindAsync(filter, null, ct);
 
-            InventoryMongoDocument document = await findResult.FirstOrDefaultAsync(ct);
-            if (document == null)
+            InventoryMongoDocument inventoryDoc = await findResult.FirstOrDefaultAsync(ct);
+            if (inventoryDoc == null)
             {
                 // No inventory found.
                 return null;
             }
             
             // Translate.
-            return new Inventory(new InventoryId(document.Id), new WarehouseId(document.WarehouseId), document.Products, document.Catalogs);
+            return new Inventory(new InventoryId(inventoryDoc.InventoryId), 
+                                 new WarehouseId(inventoryDoc.WarehouseId), 
+                                 inventoryDoc.Catalogs.Select(c => new Catalog(new InventoryId(c.InventoryId), c.CatalogName)).ToList());
         }
 
         public Task SaveAsync(Inventory inventory, CancellationToken ct = default(CancellationToken))
         {
-            var filter = Builders<InventoryMongoDocument>.Filter.Eq(i => i.Id, inventory.Id.Value);
+            InventoryState state = inventory.GetCurrentState();
 
-            var update = Builders<InventoryMongoDocument>.Update.Set(i => i.Id, inventory.Id.Value)
-                                                                .Set(i => i.WarehouseId, inventory.WarehouseId.Value)
-                                                                .Set(i => i.Products, inventory.Products.ToList())
-                                                                .Set(i => i.Catalogs, inventory.Catalogs.ToList());
+            var filter = Builders<InventoryMongoDocument>.Filter.Eq(i => i.InventoryId, inventory.Id.Value);
+
+            var update = Builders<InventoryMongoDocument>.Update.Set(i => i.InventoryId, state.InventoryId.Value)
+                                                                .Set(i => i.WarehouseId, state.WarehouseId.Value)
+                                                                .Set(p => p.Catalogs, state.Catalogs.Select(c => new CatalogMongoDocument()
+                                                                                                            {
+                                                                                                                InventoryId = c.InventoryId.Value,
+                                                                                                                CatalogName = c.Name
+                                                                                                            }).ToList());
 
             // Upsert.
             return _inventoryCollection.FindOneAndUpdateAsync(filter, 
@@ -54,23 +61,21 @@ namespace Infrastructure.Repositories
                                                               }, 
                                                               ct);
         }
-    }
 
-    internal class InventoryMongoDocument
-    {
-        [BsonId]
-        public Guid Id { get; set; }
-        public Guid WarehouseId { get; set; }
-
-        public ICollection<Product> Products { get; set; }
-        public ICollection<Catalog> Catalogs { get; set; }
-
-        public InventoryMongoDocument(Guid id, Guid warehouseId, IEnumerable<Product> products, IEnumerable<Catalog> catalogs)
+        private class InventoryMongoDocument
         {
-            Id = id;
-            WarehouseId = warehouseId;
-            Products = products.ToList();
-            Catalogs = catalogs.ToList();
+            [BsonId]
+            public Guid InventoryId { get; set; }
+            public Guid WarehouseId { get; set; }
+
+            // public ICollection<Product> Products { get; set; }
+            public ICollection<CatalogMongoDocument> Catalogs { get; set; } = new List<CatalogMongoDocument>();
+        }
+
+        private class CatalogMongoDocument
+        {
+            public Guid InventoryId { get; set; }
+            public string CatalogName { get; set; }
         }
     }
 }

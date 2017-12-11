@@ -5,14 +5,14 @@ namespace Domain.DomainEvents
 {
     public class ProductRepricedEvent : IEvent
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
+        public Guid InventoryId { get; }
         public decimal NewPrice { get; }
 
-        public ProductRepricedEvent(Guid inventoryId, Guid productId, decimal newAmount)
+        public ProductRepricedEvent(Guid productId, Guid inventoryId, decimal newAmount)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
+            InventoryId = inventoryId;
             NewPrice = newAmount;
         }
     }
