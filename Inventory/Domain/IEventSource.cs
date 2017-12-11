@@ -5,6 +5,7 @@ namespace Domain
 {
     public interface IEventSource
     {
-         IEnumerable<IEvent> Events { get; }
+         IEnumerable<IEvent> GetEvents();
+         void ClearEvents();
     }
 }

@@ -10,28 +10,36 @@ namespace Domain
     {
         // These events will be published when entity is saved using PublishingRepository
         private readonly List<IEvent> _events = new List<IEvent>();
-        private readonly List<Product> _products = new List<Product>();
-        private readonly List<Catalog> _catalogs = new List<Catalog>();
+        private readonly List<Product> _products;
+        private readonly List<Catalog> _catalogs;
 
         public InventoryId Id { get; private set; }
         public WarehouseId WarehouseId { get; private set; }
-
         public IReadOnlyCollection<Product> Products => _products.AsReadOnly();
-        IEnumerable<IEvent> IEventSource.Events => _events.AsReadOnly();
+        public IReadOnlyCollection<Catalog> Catalogs => _catalogs.AsReadOnly();
+
+        #region IEventSource Implementation
+        
+        IEnumerable<IEvent> IEventSource.GetEvents() => _events.AsReadOnly();
+
+        void IEventSource.ClearEvents() => _events.Clear();
+
+        #endregion IEventSource Implementation
         
         public Inventory(InventoryId inventoryId, WarehouseId warehouseId)
         {
             Id = inventoryId;
             WarehouseId = warehouseId;
+            _products = new List<Product>();
+            _catalogs = new List<Catalog>();
         }
 
-        public Inventory(Inventory copy)
+        public Inventory(InventoryId inventoryId, WarehouseId warehouseId, IEnumerable<Product> products, IEnumerable<Catalog> catalogs)
         {
-            Id = copy.Id;
-            WarehouseId = copy.WarehouseId;
-            _events = copy._events;
-            _products = copy._products;
-            _catalogs = copy._catalogs;
+            Id = inventoryId;
+            WarehouseId = warehouseId;
+            _products = products.ToList();
+            _catalogs = catalogs.ToList();
         }
 
         public void RegisterNewProduct(ProductId productId, string productName, string productDescription, decimal productPrice)
@@ -81,12 +89,12 @@ namespace Domain
             _events.Add(new ProductMarkedForSaleEvent(Id.Value, productId.Value));
         }
 
-        public void UnmarkProductForSale(ProductId productId)
+        public void MarkProductAsNotForSale(ProductId productId)
         {
             Product product = GetProductById(productId);
-            product.UnmarkForSale();
+            product.MarkNotForSale();
 
-            _events.Add(new ProductUnmarkedForSaleEvent(Id.Value, productId.Value));
+            _events.Add(new ProductMarkedNotForSaleEvent(Id.Value, productId.Value));
         }
 
         public void RepriceProduct(ProductId productId, decimal newAmount)
@@ -99,6 +107,11 @@ namespace Domain
 
         public void CreateNewCatalog(string catalogName)
         {
+            if(_catalogs.Any(c => c.Name == catalogName))
+            {
+                throw new InvalidOperationException($"{catalogName} already exists in inventory.");
+            }
+
             _catalogs.Add(new Catalog(Id, catalogName));
             
             _events.Add(new CatalogCreatedEvent(Id.Value, catalogName));

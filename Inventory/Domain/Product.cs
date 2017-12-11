@@ -50,7 +50,7 @@ namespace Domain
             IsForSale = true;
         }
 
-        public void UnmarkForSale()
+        public void MarkNotForSale()
         {
             IsForSale = false;
         }

@@ -8,7 +8,7 @@ using Domain.Repositories;
 
 namespace Infrastructure.Repositories
 {
-    public class InMemoryInventoryRepository : IInventoryRepository
+    public class InventoryInMemoryRepository : IInventoryRepository
     {
         private readonly List<Inventory> _inventories = new List<Inventory>()
         {
@@ -22,8 +22,13 @@ namespace Infrastructure.Repositories
                 throw new System.ArgumentNullException(nameof(inventoryId));
             }
 
-            var result = _inventories.FirstOrDefault(i => i.Id == inventoryId);
-            return Task.FromResult(new Inventory(result)); // Make a copy to return as result.
+            var storedInventory = _inventories.FirstOrDefault(i => i.Id == inventoryId);
+            
+             // Make a copy to return as result.
+            return Task.FromResult(new Inventory(storedInventory.Id, 
+                                                 storedInventory.WarehouseId, 
+                                                 storedInventory.Products, 
+                                                 storedInventory.Catalogs));
         }
 
         public Task SaveAsync(Inventory inventory, CancellationToken ct = default(CancellationToken))

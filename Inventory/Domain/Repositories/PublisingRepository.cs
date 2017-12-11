@@ -24,7 +24,7 @@ namespace Domain.Repositories
 
         public async Task SaveAsync(T entity, CancellationToken ct = default(CancellationToken))
         {
-            IEnumerable<IEvent> eventsCopy = entity.Events;
+            IEnumerable<IEvent> eventsCopy = entity.GetEvents();
 
             await _baseRepository.SaveAsync(entity, ct).ConfigureAwait(false);
 
@@ -32,6 +32,8 @@ namespace Domain.Repositories
             {
                 await _eventPublisher.PublishAsync(eventsCopy, ct).ConfigureAwait(false);
             }
+
+            entity.ClearEvents();
         }
     }
 }
