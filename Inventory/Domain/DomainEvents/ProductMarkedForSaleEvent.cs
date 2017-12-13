@@ -6,12 +6,10 @@ namespace Domain.DomainEvents
     public class ProductMarkedForSaleEvent : IEvent
     {
         public Guid ProductId { get; }
-        public Guid InventoryId { get; }
 
-        public ProductMarkedForSaleEvent(Guid productId, Guid inventoryId)
+        public ProductMarkedForSaleEvent(Guid productId)
         {
             ProductId = productId;
-            InventoryId = inventoryId;
         }
     }
 }

@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Domain;
 using Domain.Commands;
 using Domain.DomainEvents;
-using Domain.ProcessManagers;
 using Domain.Repositories;
+using Infrastructure;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.PlatformAbstractions;
 using MongoDB.Driver;
 using Swashbuckle.AspNetCore.Swagger;
 using ViewModels;
@@ -35,27 +37,33 @@ namespace Api
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            InventoryConfiguration = Configuration.GetSection("Inventory");
-            if (InventoryConfiguration == null)
+            WarehouseConfiguration = Configuration.GetSection("WarehouseConfiguration");
+            if (WarehouseConfiguration == null)
             {
-                throw new Exception("Inventory configuration section is not found. Check configuration file.");
+                throw new Exception("Warehouse configuration section is not found. Check configuration file.");
             }
         }
 
         public IConfiguration Configuration { get; }
-        public IConfigurationSection InventoryConfiguration { get; }
+
+        public IConfigurationSection WarehouseConfiguration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
-
             services.AddSingleton(Configuration);
 
-            // Register Mongo Client to be used by write and query side.
-            services.AddSingleton<IMongoClient>(s => 
+            services.AddSingleton<InventoryMongoDatabase>(s =>
             {
-                return new MongoClient(Configuration.GetConnectionString("MongoDbConnectionString"));
+                var mongoClient = new MongoClient(WarehouseConfiguration["InventoryDatabaseConnectionString"]);
+                return new InventoryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["InventoryDatabaseName"]));
+            });
+
+            services.AddSingleton<QueryMongoDatabase>(s =>
+            {
+                var mongoClient = new MongoClient(WarehouseConfiguration["QueryDatabaseConnectionString"]);
+                return new QueryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["QueryDatabaseName"]));
             });
 
             // Domain/Write side.
@@ -74,7 +82,7 @@ namespace Api
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IRepository<Inventory, InventoryId> inventoryRepository, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -91,44 +99,13 @@ namespace Api
             });
 
             app.UseMvc();
-
-            EnsureInventoryIsCreated(inventoryRepository, loggerFactory.CreateLogger(typeof(Startup)));
-        }
-
-        private async void EnsureInventoryIsCreated(IRepository<Inventory, InventoryId> inventoryRepository, ILogger logger)
-        {
-            try
-            {
-                string configuredInventoryId = InventoryConfiguration["InventoryId"];
-                InventoryId inventoryId = new InventoryId(Guid.Parse(configuredInventoryId));
-
-                Inventory inventory = await inventoryRepository.GetByIdAsync(inventoryId);
-                if (inventory == null)
-                {
-                    string configuredWarehouseId = InventoryConfiguration["WarehouseId"];
-                    WarehouseId warehouseId = new WarehouseId(Guid.Parse(configuredWarehouseId));
-
-                    await inventoryRepository.SaveAsync(new Inventory(inventoryId, warehouseId));
-                }
-            }
-            catch(Exception ex)
-            {
-                logger.LogCritical(ex, "Failed to initialize inventory.");
-            }
         }
 
         private void RegisterDomainRepositories(IServiceCollection services)
         {
-            // Register mongo repository.
-            services.AddScoped<IRepository<Inventory, InventoryId>>(s => 
-            {
-                return new PublisingRepository<Inventory, InventoryId>(new InventoryMongoRepository(s.GetRequiredService<IMongoClient>()),
-                                                                       s.GetRequiredService<IEventPublisher>());
-            });
-
             services.AddScoped<IRepository<Product, ProductId>>(s => 
             {
-                return new PublisingRepository<Product, ProductId>(new ProductMongoRepository(s.GetRequiredService<IMongoClient>()),
+                return new PublisingRepository<Product, ProductId>(new ProductMongoRepository(s.GetRequiredService<InventoryMongoDatabase>()),
                                                                    s.GetRequiredService<IEventPublisher>());
             });
         }
@@ -137,14 +114,12 @@ namespace Api
         {
             // Register all command handlers. This would have been easier with other IoC containers which supports registering
             // open-generic interfaces - i.e SimpleInjector. This could be changed in the future.
-            services.AddTransient<ICommandAsyncHandler<AddProductToCatalogCommand>, AddProductToCatalogCommandHandler>();
-            services.AddTransient<ICommandAsyncHandler<CreateCatalogCommand>, CreateCatalogCommandHandler>();
+            services.AddTransient<ICommandAsyncHandler<AddProductToCategoryCommand>, AddProductToCategoryCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<DecreaseProductStockCommand>, DecreaseProductStockCommandHandler>();
-            services.AddTransient<ICommandAsyncHandler<DeleteCatalogCommand>, DeleteCatalogCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<IncreaseProductStockCommand>, IncreaseProductStockCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<MarkProductAsForSaleCommand>, MarkProductAsForSaleCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<RegisterNewProductCommand>, RegisterNewProductCommandHandler>();
-            services.AddTransient<ICommandAsyncHandler<RemoveProductFromCatalogCommand>, RemoveProductFromCatalogCommandHandler>();
+            services.AddTransient<ICommandAsyncHandler<RemoveProductFromCategoryCommand>, RemoveProductFromCatalogCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<RepriceProductCommand>, RepriceProductCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<MarkProductAsNotForSaleCommand>, MarkProductAsNotForSaleCommandHandler>();
             services.AddTransient<ICommandAsyncHandler<UnregisterProductCommand>, UnregisterProductCommandHandler>();
@@ -158,28 +133,22 @@ namespace Api
         }
 
         private void RegisterEventHandlers(IServiceCollection services)
-        {
-            // Register all domain event handlers here.
-            services.AddTransient<IEventAsyncHandler<ProductRegisteredEvent>, ProductLifetimeManagement>();
-            services.AddTransient<IEventAsyncHandler<ProductUnregisteredEvent>, ProductLifetimeManagement>();
-            
+        {            
             // Register all query event handlers here.
             services.AddTransient<IEventAsyncHandler<ProductRegisteredEvent>, ProductViewModelProjector>();
             services.AddTransient<IEventAsyncHandler<ProductUnregisteredEvent>, ProductViewModelProjector>();
             services.AddTransient<IEventAsyncHandler<ProductMarkedForSaleEvent>, ProductViewModelProjector>();
             services.AddTransient<IEventAsyncHandler<ProductMarkedNotForSaleEvent>, ProductViewModelProjector>();
             
-            services.AddTransient<IEventAsyncHandler<CatalogCreatedEvent>, ProductCatalogViewModelProjector>();
-            services.AddTransient<IEventAsyncHandler<CatalogDeletedEvent>, ProductCatalogViewModelProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductAddedToCatalogEvent>, ProductCatalogViewModelProjector>();
-            services.AddTransient<IEventAsyncHandler<ProductRemovedFromCatalogEvent>, ProductCatalogViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductAddedToCategoryEvent>, ProductCategoryViewModelProjector>();
+            services.AddTransient<IEventAsyncHandler<ProductRemovedFromCategoryEvent>, ProductCategoryViewModelProjector>();
             
             // To enable event publisher to resolve event handlers from the ASP.NET core IoC container.
             services.AddSingleton<IEventHandlerResolver, ContainerEventHandlerResolver>();
             services.AddSingleton<Xer.Cqrs.EventStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
 
             // Register event handler
-            services.AddTransient<IEventPublisher, EventPublisher>();
+            services.AddTransient<IEventPublisher, LoggingEventPublisher>();
         }
 
         private void RegisterQueryHandlers(IServiceCollection services)
@@ -187,8 +156,8 @@ namespace Api
             // Register all query handlers.
             services.AddTransient<IQueryAsyncHandler<GetAllProductsQuery, ProductListViewModel>, GetAllProductsQueryHandler>();
             services.AddTransient<IQueryAsyncHandler<GetProductByIdQuery, ProductViewModel>, GetProductByIdQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetProductsInCatalogQuery, ProductCatalogViewModel>, GetProductsInCatalogQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetAllCatalogsQuery, ProductCatalogListViewModel>, GetAllCatalogsQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetProductsInCategoryQuery, ProductCategoryViewModel>, GetProductsInCatalogQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<GetAllProductCategoriesQuery, ProductCategoryListViewModel>, GetAllProductCategoriesQueryHandler>();
                         
             // To enable event publisher to resolve event handlers from the ASP.NET core IoC container.
             services.AddSingleton<IQueryHandlerResolver, ContainerQueryHandlerResolver>();
@@ -217,6 +186,27 @@ namespace Api
             public IEnumerable<T> ResolveMultiple<T>() where T : class
             {
                 return _container.GetServices<T>();
+            }
+        }
+
+        public class LoggingEventPublisher : EventPublisher
+        {
+            public LoggingEventPublisher(IEventHandlerResolver resolver, ILoggerFactory loggerFactory) 
+                : base(resolver)
+            {
+                ILogger logger = loggerFactory.CreateLogger(nameof(LoggingEventPublisher));
+                OnError += (e, ex) =>
+                {
+                    string errorMessage = $"------------------------------------------------------" + 
+                                          Environment.NewLine + 
+
+                                          $"{e.GetType().Name} have failed processing." + 
+
+                                          Environment.NewLine +
+                                          $"------------------------------------------------------";
+
+                    logger.LogError(ex, errorMessage);
+                };
             }
         }
     }

@@ -12,7 +12,6 @@ namespace ViewModels
     {
         [BsonId]
         public Guid ProductId { get; set; }
-        public Guid InventoryId { get; set; }
         public string ProductName { get; set; }
         public string ProductDescription { get; set; }
         public decimal ProductPrice { get; set; }
@@ -27,9 +26,8 @@ namespace ViewModels
     {
         private readonly IMongoCollection<ProductViewModel> _productViewCollection;
 
-        public ProductViewModelProjector(IMongoClient mongoClient)
+        public ProductViewModelProjector(QueryMongoDatabase mongoDb)
         {
-            IMongoDatabase mongoDb = mongoClient.GetDatabase(Constants.MongoDatabaseName);
             _productViewCollection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
@@ -37,7 +35,6 @@ namespace ViewModels
         {
             return _productViewCollection.InsertOneAsync(new ProductViewModel()
             {
-                InventoryId = @event.InventoryId,
                 ProductId = @event.ProductId,
                 ProductName = @event.ProductName,
                 ProductDescription = @event.ProductDescription,

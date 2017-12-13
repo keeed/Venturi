@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Domain.Repositories;
@@ -8,42 +9,41 @@ namespace Domain.Commands
 {
     public class RegisterNewProductCommand : Command
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
         public string ProductName { get; }
         public string ProductDescription { get; }
         public decimal ProductPrice { get; }
+        public string Currency { get; }
 
-        public RegisterNewProductCommand(Guid inventoryId, Guid productId, string productName, string productDescription, decimal productPrice)
+        public RegisterNewProductCommand(Guid productId, string productName, string productDescription, decimal productPrice, string currency)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
             ProductName = productName;
             ProductDescription = productDescription;
             ProductPrice = productPrice;
+            Currency = currency;
         }
     }
 
     public class RegisterNewProductCommandHandler : ICommandAsyncHandler<RegisterNewProductCommand>
     {
-        private readonly IRepository<Inventory, InventoryId> _inventoryRepository;
+        private readonly IRepository<Product, ProductId> _productRepository;
 
-        public RegisterNewProductCommandHandler(IRepository<Inventory, InventoryId> inventoryRepository)
+        public RegisterNewProductCommandHandler(IRepository<Product, ProductId> productRepository)
         {
-            _inventoryRepository = inventoryRepository;
+            _productRepository = productRepository;
         }
 
-        public async Task HandleAsync(RegisterNewProductCommand command, CancellationToken cancellationToken = default(CancellationToken))
+        public Task HandleAsync(RegisterNewProductCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Inventory inventory = await _inventoryRepository.GetByIdAsync(new InventoryId(command.InventoryId), cancellationToken).ConfigureAwait(false);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Inventory not found.");
-            }
-
-            inventory.RegisterNewProduct(new ProductId(command.ProductId), command.ProductName, command.ProductDescription, command.ProductPrice);
-
-            await _inventoryRepository.SaveAsync(inventory, cancellationToken).ConfigureAwait(false);
+            ProductId productId = new ProductId(command.ProductId);
+            return _productRepository.SaveAsync(new Product(productId,
+                command.ProductName,
+                command.ProductDescription,
+                new Price(command.ProductPrice, command.Currency),
+                new Stock(productId, 0),
+                Enumerable.Empty<ProductCategory>(),
+                false));
         }
     }
 }

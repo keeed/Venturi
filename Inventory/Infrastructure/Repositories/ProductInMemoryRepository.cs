@@ -21,15 +21,7 @@ namespace Infrastructure.Repositories
             var storedProduct = _products.FirstOrDefault(p => p.Id == productId);
             var state = storedProduct.GetCurrentState();
              // Make a copy to return as result.
-            return Task.FromResult(new Product(state.ProductId,
-                                               state.InventoryId,
-                                               state.ProductName,
-                                               state.ProductDescription,
-                                               state.Price,
-                                               state.Stock,
-                                               state.Catalogs,
-                                               state.IsForSale,
-                                               state.IsUnregistered));
+            return Task.FromResult(new Product(state));
         }
 
         public Task SaveAsync(Product product, CancellationToken ct = default(CancellationToken))
@@ -43,6 +35,13 @@ namespace Infrastructure.Repositories
 
             _products.Add(product);
 
+            return Task.CompletedTask;
+        }
+        
+        public Task DeleteByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
+        {
+            _products.RemoveAll(p => p.Id == productId);
+            
             return Task.CompletedTask;
         }
     }

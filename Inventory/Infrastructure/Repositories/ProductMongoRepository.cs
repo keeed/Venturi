@@ -14,10 +14,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<ProductMongoDocument> _productCollection;
 
-        public ProductMongoRepository(IMongoClient mongoClient)
+        public ProductMongoRepository(InventoryMongoDatabase mongoDb)
         {
-            IMongoDatabase mongoDatabase = mongoClient.GetDatabase(Constants.MongoDatabaseName);
-            _productCollection = mongoDatabase.GetCollection<ProductMongoDocument>(nameof(Inventory));
+            _productCollection = mongoDb.GetCollection<ProductMongoDocument>(nameof(Product));
         }
 
         public async Task<Product> GetByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
@@ -40,14 +39,14 @@ namespace Infrastructure.Repositories
 
             // Translate to domain.
             ProductId productDocId = new ProductId(productDoc.ProductId);
-            return new Product(productDocId,
-                               new InventoryId(productDoc.InventoryId),
-                               productDoc.ProductName,
-                               productDoc.ProductDescription,
-                               new Price(productDoc.Price),
-                               new Stock(productDocId, productDoc.StockQuantity),
-                               productDoc.Catalogs.Select(cDoc => new Catalog(new InventoryId(cDoc.InventoryId), cDoc.CatalogName)).ToList(), // Translate
-                               productDoc.IsForSale);
+            return new Product(new ProductState(productDocId,
+                                                productDoc.ProductName,
+                                                productDoc.ProductDescription,
+                                                new Price(productDoc.Price.Amount, productDoc.Price.Currency),
+                                                new Stock(productDocId, productDoc.Stock.Quantity),
+                                                productDoc.Categories.Select(cDoc => new ProductCategory(cDoc.CategoryName)).ToList(), // Translate
+                                                productDoc.IsForSale,
+                                                productDoc.IsUnregistered));
         }
 
         public Task SaveAsync(Product product, CancellationToken ct = default(CancellationToken))
@@ -61,16 +60,15 @@ namespace Infrastructure.Repositories
 
             var filter = Builders<ProductMongoDocument>.Filter.Eq(p => p.ProductId, state.ProductId.Value);
             
-            var update = Builders<ProductMongoDocument>.Update.Set(p => p.InventoryId, state.InventoryId.Value)
-                                                              .Set(p => p.ProductName, state.ProductName)
+            var update = Builders<ProductMongoDocument>.Update.Set(p => p.ProductName, state.ProductName)
                                                               .Set(p => p.ProductDescription, state.ProductDescription)
-                                                              .Set(p => p.Price, state.Price.Amount)
-                                                              .Set(p => p.StockQuantity, state.Stock.Quantity)
-                                                              .Set(p => p.Catalogs, state.Catalogs.Select(c => new CatalogMongoDocument()
-                                                                                                          {
-                                                                                                              InventoryId = c.InventoryId.Value,
-                                                                                                              CatalogName = c.Name
-                                                                                                          }).ToList())
+                                                              .Set(p => p.Price.Amount, state.Price.Amount)
+                                                              .Set(p => p.Price.Currency, state.Price.Currency)
+                                                              .Set(p => p.Stock.Quantity, state.Stock.Quantity)
+                                                              .Set(p => p.Categories, state.Categories.Select(c => new CategoryMongoDocument()
+                                                                                                              {
+                                                                                                                  CategoryName = c.Name
+                                                                                                              }).ToList())
                                                               .Set(p => p.IsForSale, state.IsForSale)
                                                               .Set(p => p.IsUnregistered, state.IsUnregistered);
 
@@ -83,24 +81,39 @@ namespace Infrastructure.Repositories
                                                             ct);
         }
 
+        public Task DeleteByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
+        {
+            var filter = Builders<ProductMongoDocument>.Filter.Eq(p => p.ProductId, productId.Value);
+            return _productCollection.FindOneAndDeleteAsync(filter, null, ct);
+        }
+
         private class ProductMongoDocument
         {
             [BsonId]
             public Guid ProductId { get; set; }
-            public Guid InventoryId { get; set; }
             public string ProductName { get; set; }
             public string ProductDescription { get; set; }
-            public decimal Price { get; set; }
-            public int StockQuantity { get; set; }
-            public ICollection<CatalogMongoDocument> Catalogs { get; set; } = new List<CatalogMongoDocument>();
+            public PriceMongoDocument Price { get; set; }
+            public StockMongoDocument Stock { get; set; }
+            public ICollection<CategoryMongoDocument> Categories { get; set; } = new List<CategoryMongoDocument>();
             public bool IsForSale { get; set; }
             public bool IsUnregistered { get; set; }
         }
 
-        private class CatalogMongoDocument
+        private class PriceMongoDocument
         {
-            public Guid InventoryId { get; set; }
-            public string CatalogName { get; set; }
+            public decimal Amount { get; set; }
+            public string Currency { get; set; }
+        }
+
+        private class StockMongoDocument
+        {
+            public int Quantity { get; set; }
+        }
+
+        private class CategoryMongoDocument
+        {
+            public string CategoryName { get; set; }
         }
     }
 }

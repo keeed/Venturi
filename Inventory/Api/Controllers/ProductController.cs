@@ -18,13 +18,11 @@ namespace Api.Controllers
     {
         private readonly ICommandAsyncDispatcher _commandDispatcher;
         private readonly IQueryAsyncDispatcher _queryDispatcher;
-        private readonly Guid _inventoryIdFromConfiguration;
         
-        public ProductController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher, IConfiguration configuration)
+        public ProductController(ICommandAsyncDispatcher commandDispatcher, IQueryAsyncDispatcher queryDispatcher)
         {
             _commandDispatcher = commandDispatcher;
             _queryDispatcher = queryDispatcher;
-            _inventoryIdFromConfiguration = configuration.GetSection("Inventory").GetValue<Guid>("InventoryId");
         }
 
         [HttpGet]
@@ -41,39 +39,39 @@ namespace Api.Controllers
             return Ok(result);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetProduct(Guid id)
+        [HttpGet("{productId}")]
+        public async Task<IActionResult> GetProduct(Guid productId)
         {
-            ProductViewModel result = await _queryDispatcher.DispatchAsync<GetProductByIdQuery, ProductViewModel>(new GetProductByIdQuery(id));
+            ProductViewModel result = await _queryDispatcher.DispatchAsync<GetProductByIdQuery, ProductViewModel>(new GetProductByIdQuery(productId));
             return Ok(result);
         }
 
         [HttpPost]
-        public async Task<IActionResult> RegisterNewProduct([FromBody]RegisterNewProductCommandDto dto)
+        public async Task<IActionResult> RegisterNewProduct([FromBody]RegisterNewProductCommandDto registerNewProductCommand)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
+            await _commandDispatcher.DispatchAsync(registerNewProductCommand.ToDomainCommand());
             return Ok();
         }
 
-        [HttpDelete]
-        public async Task<IActionResult> UnregisterProduct([FromBody]UnregisterProductCommandDto dto)
+        [HttpDelete("{productId}")]
+        public async Task<IActionResult> UnregisterProduct([FromRoute]Guid productId)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
+            await _commandDispatcher.DispatchAsync(new UnregisterProductCommand(productId));
             return Ok();
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateProduct([FromHeader]string operation, [FromRoute]Guid id, [FromBody]JObject jsonPayload)
+        [HttpPut("{productId}")]
+        public async Task<IActionResult> UpdateProduct([FromHeader]string operation, [FromRoute]Guid productId, [FromBody]JObject jsonPayload)
         {
             if (!ModelState.IsValid)
             {
@@ -83,67 +81,89 @@ namespace Api.Controllers
             switch (operation)
             {
                 case ProductOperationConstants.MarkProductAsForSale:
-                    {
-                        return await InternalMarkProductAsForSale(jsonPayload);
-                    }
+                {
+                    return await InternalMarkProductAsForSale(productId);
+                }
 
                 case ProductOperationConstants.MarkProductAsNotForSale:
-                    {
-                        return await InternalMarkProductAsNotForSale(jsonPayload);
-                    }
+                {
+                    return await InternalMarkProductAsNotForSale(productId);
+                }
 
                 case ProductOperationConstants.RepriceProduct:
-                    {
-                        return await InternalRepriceProduct(jsonPayload);
-                    }
+                {
+                    return await InternalRepriceProduct(productId, jsonPayload);
+                }
 
-                case ProductOperationConstants.AddProductToCatalog:
-                    {
-                        return await InternalAddProductToCatalog(jsonPayload);
-                    }
+                case ProductOperationConstants.AddProductToCategory:
+                {
+                    return await InternalAddProductToCategory(productId, jsonPayload);
+                }
 
-                case ProductOperationConstants.RemoveProductFromCatalog:
-                    {
-                        return await InternalRemoveProductFromCatalog(jsonPayload);
-                    }
+                case ProductOperationConstants.RemoveProductFromCategory:
+                {
+                    return await InternalRemoveProductFromCategory(productId, jsonPayload);
+                }
 
                 default:
-                    return BadRequest($"{operation} operation is not supported.");
+                    return BadRequest($"{operation} operation is not supported. Check 'operation' HTTP header.");
             }
         }
 
-        private async Task<IActionResult> InternalMarkProductAsForSale(JObject jsonPayload)
+        private async Task<IActionResult> InternalMarkProductAsForSale(Guid productId)
         {
-            var dto = JsonConvert.DeserializeObject<MarkProductAsForSaleCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(new MarkProductAsForSaleCommand(productId));
             return Ok();
         }
 
-        private async Task<IActionResult> InternalMarkProductAsNotForSale(JObject jsonPayload)
+        private async Task<IActionResult> InternalMarkProductAsNotForSale(Guid productId)
         {
-            var dto = JsonConvert.DeserializeObject<MarkProductAsNotForSaleCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            await _commandDispatcher.DispatchAsync(new MarkProductAsNotForSaleCommand(productId));
             return Ok();
         }
 
-        private async Task<IActionResult> InternalRepriceProduct(JObject jsonPayload)
+        private async Task<IActionResult> InternalRepriceProduct(Guid productId, JObject jsonPayload)
         {
-            var dto = JsonConvert.DeserializeObject<RepriceProductCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand());
+            const string newPriceKey = nameof(RepriceProductCommand.NewPrice);
+
+            JToken newPriceToken;
+
+            if(!jsonPayload.TryGetValue(newPriceKey, StringComparison.OrdinalIgnoreCase, out newPriceToken))
+            {
+                return BadRequest($"{newPriceKey} is required.");
+            }
+
+            await _commandDispatcher.DispatchAsync(new RepriceProductCommand(productId, newPriceToken.ToObject<decimal>()));
             return Ok();
         }
 
-        private async Task<IActionResult> InternalAddProductToCatalog(JObject jsonPayload)
+        private async Task<IActionResult> InternalAddProductToCategory(Guid productId, JObject jsonPayload)
         {
-            var dto = JsonConvert.DeserializeObject<AddProductToCatalogCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
+            const string categoryNameKey = nameof(AddProductToCategoryCommand.CategoryName);
+
+            JToken categoryNameToken;
+
+            if(!jsonPayload.TryGetValue(categoryNameKey, StringComparison.OrdinalIgnoreCase, out categoryNameToken))
+            {
+                return BadRequest($"{categoryNameKey} is required.");
+            }
+            
+            await _commandDispatcher.DispatchAsync(new AddProductToCategoryCommand(productId, categoryNameToken.ToObject<string>()));
             return Ok();
         }
 
-        private async Task<IActionResult> InternalRemoveProductFromCatalog(JObject jsonPayload)
+        private async Task<IActionResult> InternalRemoveProductFromCategory(Guid productId, JObject jsonPayload)
         {
-            var dto = JsonConvert.DeserializeObject<RemoveProductFromCatalogCommandDto>(jsonPayload.ToString());
-            await _commandDispatcher.DispatchAsync(dto.ToDomainCommand(_inventoryIdFromConfiguration));
+            const string categoryNameKey = nameof(RemoveProductFromCategoryCommand.CategoryName);
+
+            JToken categoryNameToken;
+
+            if(!jsonPayload.TryGetValue(categoryNameKey, StringComparison.OrdinalIgnoreCase, out categoryNameToken))
+            {
+                return BadRequest($"{categoryNameKey} is required.");
+            }
+            
+            await _commandDispatcher.DispatchAsync(new RemoveProductFromCategoryCommand(productId, categoryNameToken.ToObject<string>()));
             return Ok();
         }
     }
@@ -155,11 +175,17 @@ namespace Api.Controllers
         public Guid ProductId { get; set; }
         public string ProductName { get; set; }
         public string ProductDescription { get; set; }
-        public decimal ProductPrice { get; set; }
+        public PriceDto ProductPrice { get; set; }
 
-        public RegisterNewProductCommand ToDomainCommand(Guid inventoryId)
+        public RegisterNewProductCommand ToDomainCommand()
         {
-            return new RegisterNewProductCommand(inventoryId, ProductId, ProductName, ProductDescription, ProductPrice);
+            return new RegisterNewProductCommand(ProductId, ProductName, ProductDescription, ProductPrice.Amount, ProductPrice.Currency);
+        }
+
+        public class PriceDto
+        {
+            public decimal Amount { get; set; }
+            public string Currency { get; set; }
         }
     }
 
@@ -167,9 +193,9 @@ namespace Api.Controllers
     {
         public Guid ProductId { get; set; }
 
-        public UnregisterProductCommand ToDomainCommand(Guid inventoryId)
+        public UnregisterProductCommand ToDomainCommand()
         {
-            return new UnregisterProductCommand(inventoryId, ProductId);
+            return new UnregisterProductCommand(ProductId);
         }
     }
 
@@ -178,61 +204,8 @@ namespace Api.Controllers
         public const string MarkProductAsForSale = nameof(MarkProductAsForSale);
         public const string MarkProductAsNotForSale = nameof(MarkProductAsNotForSale);
         public const string RepriceProduct = nameof(RepriceProduct);
-        public const string AddProductToCatalog = nameof(AddProductToCatalog);
-        public const string RemoveProductFromCatalog = nameof(RemoveProductFromCatalog);
-    }
-
-    public class MarkProductAsForSaleCommandDto
-    {
-        public Guid ProductId { get; set; }
-
-        public MarkProductAsForSaleCommand ToDomainCommand()
-        {
-            return new MarkProductAsForSaleCommand(ProductId);
-        }
-    }
-
-    public class MarkProductAsNotForSaleCommandDto
-    {
-        public Guid ProductId { get; set; }
-
-        public MarkProductAsNotForSaleCommand ToDomainCommand()
-        {
-            return new MarkProductAsNotForSaleCommand(ProductId);
-        }
-    }
-
-    public class RepriceProductCommandDto
-    {
-        public Guid ProductId { get; set; }
-        public decimal NewPrice { get; set; }
-
-        public RepriceProductCommand ToDomainCommand()
-        {
-            return new RepriceProductCommand(ProductId, NewPrice);
-        }
-    }
-
-    public class AddProductToCatalogCommandDto
-    {
-        public Guid ProductId { get; set; }
-        public string CatalogName { get; set; }
-
-        public AddProductToCatalogCommand ToDomainCommand(Guid inventoryId)
-        {
-            return new AddProductToCatalogCommand(inventoryId, ProductId, CatalogName);
-        }
-    }
-
-    public class RemoveProductFromCatalogCommandDto
-    {
-        public Guid ProductId { get; set; }
-        public string CatalogName { get; set; }
-
-        public RemoveProductFromCatalogCommand ToDomainCommand(Guid inventoryId)
-        {
-            return new RemoveProductFromCatalogCommand(inventoryId, ProductId, CatalogName);
-        }
+        public const string AddProductToCategory = nameof(AddProductToCategory);
+        public const string RemoveProductFromCategory = nameof(RemoveProductFromCategory);
     }
 
     #endregion DTOs

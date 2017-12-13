@@ -20,9 +20,8 @@ namespace ViewModels.Queries
     {
         private readonly IMongoCollection<ProductViewModel> _productViewColection;
 
-        public GetAllProductsQueryHandler(IMongoClient mongoClient)
+        public GetAllProductsQueryHandler(QueryMongoDatabase mongoDb)
         {
-            IMongoDatabase mongoDb = mongoClient.GetDatabase(Constants.MongoDatabaseName);
             _productViewColection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
@@ -31,7 +30,7 @@ namespace ViewModels.Queries
             if(!query.IncludeNotForSaleProducts)
             {
                 var filter = Builders<ProductViewModel>.Filter.Eq(pv => pv.IsProductForSale, true);
-                IAsyncCursor<ProductViewModel> forSaleProductViews = await _productViewColection.FindAsync(filter, null, cancellationToken);
+                var forSaleProductViews = await _productViewColection.FindAsync(filter, null, cancellationToken);
                 
                 return new ProductListViewModel()
                 {

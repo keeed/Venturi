@@ -8,13 +8,11 @@ namespace Domain.Commands
 {
     public class DecreaseProductStockCommand : Command
     {
-        public Guid InventoryId { get; }
         public Guid ProductId { get; }
         public int AmountToDecrease { get; }
 
-        public DecreaseProductStockCommand(Guid inventoryId, Guid productId, int amountToDecrease)
+        public DecreaseProductStockCommand(Guid productId, int amountToDecrease)
         {
-            InventoryId = inventoryId;
             ProductId = productId;
             AmountToDecrease = amountToDecrease;
         }

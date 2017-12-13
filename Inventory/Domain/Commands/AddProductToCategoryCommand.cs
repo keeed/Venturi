@@ -6,36 +6,36 @@ using Xer.Cqrs.CommandStack;
 
 namespace Domain.Commands
 {
-    public class IncreaseProductStockCommand : Command
+    public class AddProductToCategoryCommand : Command
     {
         public Guid ProductId { get; }
-        public int AmountToIncrease { get; }
+        public string CategoryName { get; }
 
-        public IncreaseProductStockCommand(Guid productId, int amountToIncrease)
+        public AddProductToCategoryCommand(Guid productId, string categoryName)
         {
             ProductId = productId;
-            AmountToIncrease = amountToIncrease;
+            CategoryName = categoryName;
         }
     }
 
-    public class IncreaseProductStockCommandHandler : ICommandAsyncHandler<IncreaseProductStockCommand>
+    public class AddProductToCategoryCommandHandler : ICommandAsyncHandler<AddProductToCategoryCommand>
     {
         private readonly IRepository<Product, ProductId> _productRepository;
 
-        public IncreaseProductStockCommandHandler(IRepository<Product, ProductId> productRepository)
+        public AddProductToCategoryCommandHandler(IRepository<Product, ProductId> productRepository)
         {
             _productRepository = productRepository;
         }
 
-        public async Task HandleAsync(IncreaseProductStockCommand command, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task HandleAsync(AddProductToCategoryCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
             Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
-            if (product == null)
+            if(product == null)
             {
                 throw new InvalidOperationException("Product not found.");
             }
-            
-            product.IncreaseProductStock(command.AmountToIncrease);
+
+            product.AddProductToCategory(new ProductCategory(command.CategoryName));
 
             await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }

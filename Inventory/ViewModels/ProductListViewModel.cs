@@ -5,6 +5,6 @@ namespace ViewModels
 {
     public class ProductListViewModel
     {
-        public ICollection<ProductViewModel> Products { get; set; }
+        public List<ProductViewModel> Products { get; set; }
     }
 }

@@ -6,6 +6,6 @@ namespace Domain.Repositories
 {
     public interface IProductRepository : IRepository<Product, ProductId>
     {
-        //List<Product> GetProductsInCatalogAsync(string catalogName, CancellationToken ct = default(CancellationToken));
+        Task DeleteByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken));
     }
 }
