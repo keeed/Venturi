@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Domain.Commands;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using ViewModels;
@@ -10,6 +11,7 @@ using Xer.Cqrs.QueryStack;
 
 namespace Api.Controllers
 {
+    [Authorize]
     [Route("api/category")]
     public class CategoryController : Controller
     {

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Domain;
 using Domain.Commands;
@@ -9,6 +10,7 @@ using Domain.DomainEvents;
 using Domain.Repositories;
 using Infrastructure;
 using Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.PlatformAbstractions;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using Swashbuckle.AspNetCore.Swagger;
 using ViewModels;
@@ -37,22 +40,49 @@ namespace Api
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+
             WarehouseConfiguration = Configuration.GetSection("WarehouseConfiguration");
             if (WarehouseConfiguration == null)
             {
                 throw new Exception("Warehouse configuration section is not found. Check configuration file.");
             }
+
+            JwtIssuer = WarehouseConfiguration["Jwt:Issuer"];
+            JwtKey = WarehouseConfiguration["Jwt:Key"];
         }
 
         public IConfiguration Configuration { get; }
 
         public IConfigurationSection WarehouseConfiguration { get; }
+        public string JwtIssuer { get; }
+        public string JwtKey { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
             services.AddSingleton(Configuration);
+            
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                
+            }).AddJwtBearer(cfg =>
+            {
+                cfg.RequireHttpsMetadata = false;
+                cfg.SaveToken = true;
+                cfg.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = JwtIssuer,
+                    ValidateAudience = true,
+                    ValidAudience = JwtIssuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                    ClockSkew = TimeSpan.Zero // remove delay of token when expire
+                };
+            });
 
             services.AddSingleton<InventoryMongoDatabase>(s =>
             {
@@ -78,6 +108,14 @@ namespace Api
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Info { Title = "Venturi Inventory", Version = "v1" });
+                
+                c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new ApiKeyScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+                    Name = "Authorization",
+                    In = "header",
+                    Type = "apiKey"
+                });
             });
         }
 
@@ -88,6 +126,9 @@ namespace Api
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            // ===== Use Authentication ======
+            app.UseAuthentication();
 
             // Enable middleware to serve generated Swagger as a JSON endpoint.
             app.UseSwagger();
@@ -125,7 +166,7 @@ namespace Api
             services.AddTransient<ICommandAsyncHandler<UnregisterProductCommand>, UnregisterProductCommandHandler>();
 
             // To enable command dispatcher to resolve command handlers from the ASP.NET core IoC container.
-            services.AddSingleton<ICommandHandlerResolver, ContainerCommandHandlerResolver>();
+            services.AddSingleton<ICommandHandlerResolver, ContainerCommandAsyncHandlerResolver>();
             services.AddSingleton<Xer.Cqrs.CommandStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
 
             // Register command dispatcher.

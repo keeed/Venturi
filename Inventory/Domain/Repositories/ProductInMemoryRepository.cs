@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Domain;
 using Domain.Repositories;
 
-namespace Infrastructure.Repositories
+namespace Domain.Repositories
 {
     public class ProductInMemoryRepository : IProductRepository
     {

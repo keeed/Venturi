@@ -24,9 +24,9 @@ namespace Api
                                     .Build();
 
             return WebHost.CreateDefaultBuilder(args)
-                    .UseConfiguration(configuration)
-                    .UseStartup<Startup>()
-                    .Build();
+                .UseConfiguration(configuration)
+                .UseStartup<Startup>()
+                .Build();
         }
     }
 }
