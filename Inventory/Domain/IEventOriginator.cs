@@ -3,7 +3,7 @@ using Xer.Cqrs.EventStack;
 
 namespace Domain
 {
-    public interface IEventSource
+    public interface IEventOriginator
     {
          IEnumerable<IEvent> GetEvents();
          void ClearEvents();

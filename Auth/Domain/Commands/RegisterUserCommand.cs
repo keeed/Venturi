@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Domain.Exceptions;
+using Domain.PasswordManagement;
 using Domain.Repositories;
 using Xer.Cqrs.CommandStack;
 
@@ -24,26 +25,27 @@ namespace Domain.Commands
     public class RegisterUserCommandHandler : ICommandAsyncHandler<RegisterUserCommand>
     {
         private readonly IUserRepository _userRepository;
+        private readonly PasswordValidator _passwordValidator;
         private readonly IPasswordHasher _passwordHasher;
 
-
-        public RegisterUserCommandHandler(IUserRepository userRepository, IPasswordHasher passwordHasher)
+        public RegisterUserCommandHandler(IUserRepository userRepository, PasswordValidator passwordValidator, IPasswordHasher passwordHasher)
         {
             _userRepository = userRepository;
+            _passwordValidator = passwordValidator;
             _passwordHasher = passwordHasher;
         }
 
         public async Task HandleAsync(RegisterUserCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
             User user = await _userRepository.GetUserByUsernameAsync(command.Username, cancellationToken);
-            if(user != null)
+            if (user != null)
             {
                 throw new UsernameAlreadyTakenException("Username is already taken.");
             }
 
-            await _userRepository.SaveAsync(new User(new UserId(command.UserId), 
-                                                     command.Username, 
-                                                     Password.GenerateHash(command.Password, _passwordHasher)));
+            await _userRepository.SaveAsync(new User(new UserId(command.UserId),
+                                                     command.Username,
+                                                     Password.Create(command.Password, _passwordValidator, _passwordHasher)));
         }
     }
 }

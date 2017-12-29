@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Inventory\Domain\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UI.Web", "Inventory\UI.Web\UI.Web.csproj", "{77106AEB-E2EF-4421-8A80-9D174E9FEFC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ViewModels", "Inventory\ViewModels\ViewModels.csproj", "{433A1979-02D2-4B09-B188-033DCAEDA943}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterializedViews", "Inventory\MaterializedViews\MaterializedViews.csproj", "{433A1979-02D2-4B09-B188-033DCAEDA943}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Inventory\Infrastructure\Infrastructure.csproj", "{D2E98A1B-1A24-45EC-B893-951D7D08A5BD}"
 EndProject

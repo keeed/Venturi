@@ -9,6 +9,8 @@ using Api.HostedServices;
 using Domain;
 using Domain.Commands;
 using Domain.DomainEvents;
+using Domain.PasswordManagement;
+using Domain.PasswordManagement.PasswordRequirements;
 using Domain.Repositories;
 using Domain.Services;
 using Infrastructure;
@@ -33,7 +35,15 @@ using Xer.Cqrs.EventStack.Resolvers;
 namespace Api
 {
     public class Startup
-    {
+    {       
+        public IConfiguration Configuration { get; }
+        public string JwtIssuer { get; }
+        public string JwtKey { get; }
+        public int ExpireDays { get; }
+        public int MaximumAllowedFailedSignInAttempts { get; }
+        public TimeSpan LockoutReleaseServiceInterval { get; }
+        public TimeSpan LockoutDuration { get; }
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -41,46 +51,15 @@ namespace Api
             JwtIssuer = Configuration["Jwt:Issuer"];
             JwtKey = Configuration["Jwt:Key"];
             ExpireDays = int.Parse(Configuration["Jwt:ExpireDays"]);
+            MaximumAllowedFailedSignInAttempts = int.Parse(Configuration["Lockout:MaximumAllowedFailedSignInAttempts"]);
+            LockoutReleaseServiceInterval = TimeSpan.FromMilliseconds(int.Parse(Configuration["Lockout:LockoutReleaseServiceIntervalInMilliseconds"]));
+            LockoutDuration = TimeSpan.FromMilliseconds(int.Parse(Configuration["Lockout:LockoutDurationInMilliseconds"]));
         }
-
-        public IConfiguration Configuration { get; }
-        public string JwtIssuer { get; }
-        public string JwtKey { get; }
-        public int ExpireDays { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            // ===== Add our DbContext ========
-            // services.AddDbContext<ApplicationDbContext>();
-
-            // ===== Add Identity ========
-            // services.AddIdentity<IdentityUser, IdentityRole>()
-            //         .AddEntityFrameworkStores<ApplicationDbContext>()
-            //         .AddDefaultTokenProviders();
-
-            // ===== Add Jwt Authentication ========
-            // JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // => remove default claims
-
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-
-            }).AddJwtBearer(cfg =>
-            {
-                cfg.RequireHttpsMetadata = false;
-                cfg.SaveToken = true;
-                cfg.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidIssuer = JwtIssuer,
-                    ValidAudience = JwtIssuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
-                    ClockSkew = TimeSpan.Zero // remove delay of token when expire
-                };
-                System.Console.WriteLine(cfg.Audience);
-            });
+            RegisterAuthentication(services);
 
             // ===== Add MVC ========
             services.AddMvc();
@@ -88,67 +67,7 @@ namespace Api
             RegisterDomainServices(services);
 
             // Swagger.
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new Info { Title = "Venturi Auth", Version = "v1" });
-
-                c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new ApiKeyScheme
-                {
-                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
-                        Name = "Authorization",
-                        In = "header",
-                        Type = "apiKey"
-                });
-            });
-        }
-
-        private void RegisterDomainServices(IServiceCollection services)
-        {
-            services.AddTransient<ITokenGenerator>(s => new JwtTokenGenerator(JwtIssuer, JwtKey, TimeSpan.FromDays(ExpireDays)));
-            services.AddTransient<IPasswordHasher, BcryptPasswordHasher>();
-            services.AddTransient<AuthenticationService>();
-
-            services.AddSingleton<IUserRepository>(s => 
-            {
-                return new PublishingUserRepository(new UserInMemoryRepository(),
-                                                    s.GetRequiredService<IEventPublisher>());
-            });
-
-            // Hosted services.
-            services.AddSingleton<IHostedService, UserLockoutReleaseHostedService>(s =>
-            {
-                return new UserLockoutReleaseHostedService(
-                        new UserLockoutTimeElapsedEventHandler(s.GetRequiredService<IUserRepository>(), 1000));
-            });
-
-            RegisterCommandHandlers(services);
-            RegisterEventHandlers(services);
-        }
-
-        private void RegisterCommandHandlers(IServiceCollection services)
-        {
-            // Register all command handlers. This would have been easier with other IoC containers which supports registering
-            // open-generic interfaces - i.e SimpleInjector. This could be changed in the future.
-            services.AddTransient<ICommandAsyncHandler<RegisterUserCommand>, RegisterUserCommandHandler>();
-
-            // To enable command dispatcher to resolve command handlers from the ASP.NET core IoC container.
-            services.AddSingleton<ICommandHandlerResolver, ContainerCommandAsyncHandlerResolver>();
-            services.AddSingleton<Xer.Cqrs.CommandStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
-
-            // Register command dispatcher.
-            services.AddTransient<ICommandAsyncDispatcher, CommandDispatcher>();
-        }
-
-        private void RegisterEventHandlers(IServiceCollection services)
-        {
-            services.AddTransient<IEventAsyncHandler<UserFailedSignInEvent>, UserFailedSignInEventHandler>();
-
-            // To enable command dispatcher to resolve command handlers from the ASP.NET core IoC container.
-            services.AddSingleton<IEventHandlerResolver, ContainerEventHandlerResolver>();
-            services.AddSingleton<Xer.Cqrs.EventStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
-
-            // Register command dispatcher.
-            services.AddTransient<IEventPublisher, LoggingEventPublisher>();
+            RegisterSwagger(services);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -174,6 +93,112 @@ namespace Api
             app.UseMvc();
         }
 
+        private void RegisterAuthentication(IServiceCollection services)
+        {
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+            }).AddJwtBearer(cfg =>
+            {
+                cfg.RequireHttpsMetadata = false;
+                cfg.SaveToken = true;
+                cfg.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = JwtIssuer,
+                    ValidAudience = JwtIssuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                    ClockSkew = TimeSpan.Zero // remove delay of token when expire
+                };
+            });
+        }
+
+        private static void RegisterSwagger(IServiceCollection services)
+        {
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Info { Title = "Venturi Auth", Version = "v1" });
+
+                c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new ApiKeyScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+                    Name = "Authorization",
+                    In = "header",
+                    Type = "apiKey"
+                });
+            });
+        }
+
+        private void RegisterDomainServices(IServiceCollection services)
+        {
+            // Infrastucture.
+            services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+            services.AddSingleton<ITokenGenerator>(s => 
+                new JwtTokenGenerator(JwtIssuer, JwtKey, TimeSpan.FromDays(ExpireDays))
+            );
+            
+            services.AddSingleton<PasswordValidator>(s =>
+                new PasswordValidator(new IPasswordRequirement[]
+                {
+                    new PasswordLengthRequirement(3, 30),
+                    new PasswordHasNumbericCharactersRequirement()
+                })
+            );
+
+            services.AddSingleton<IUserRepository>(s => 
+                new PublishingUserRepository(new UserInMemoryRepository(), s.GetRequiredService<IEventPublisher>())
+            );
+
+            services.AddSingleton<AuthenticationService>();
+
+            RegisterHostedServices(services);
+            RegisterCommandHandlers(services);
+            RegisterEventHandlers(services);
+        }
+
+        private void RegisterHostedServices(IServiceCollection services)
+        {
+            // Hosted services.
+            services.AddSingleton<IHostedService>(s =>
+                new LockoutReleaseHostedService(s.GetRequiredService<IUserRepository>(), 
+                                                LockoutReleaseServiceInterval)
+            );
+        }
+
+        private void RegisterCommandHandlers(IServiceCollection services)
+        {
+            // Register all command handlers. This would have been easier with other IoC containers which supports registering
+            // open-generic interfaces - i.e SimpleInjector. This could be changed in the future.
+            services.AddTransient<ICommandAsyncHandler<RegisterUserCommand>, RegisterUserCommandHandler>();
+
+            // To enable command dispatcher to resolve command handlers from the ASP.NET core IoC container.
+            services.AddSingleton<ICommandHandlerResolver, ContainerCommandAsyncHandlerResolver>();
+            services.AddSingleton<Xer.Cqrs.CommandStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
+
+            // Register command dispatcher.
+            services.AddTransient<ICommandAsyncDispatcher, CommandDispatcher>();
+        }
+
+        private void RegisterEventHandlers(IServiceCollection services)
+        {
+            services.AddTransient<IEventAsyncHandler<UserSignInFailedEvent>>(s => 
+                new UserSignInFailedEventHandler(s.GetRequiredService<IUserRepository>(), 
+                                                 MaximumAllowedFailedSignInAttempts, 
+                                                 LockoutDuration)
+            );
+
+            // To enable command dispatcher to resolve command handlers from the ASP.NET core IoC container.
+            services.AddSingleton<IEventHandlerResolver, ContainerEventHandlerResolver>();
+            services.AddSingleton<Xer.Cqrs.EventStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
+
+            // Register command dispatcher.
+            services.AddTransient<IEventPublisher, LoggingEventPublisher>();
+        }
+
+        #region Container Adapter
+
         class AspNetCoreServiceProviderAdapter : Xer.Cqrs.CommandStack.Resolvers.IContainerAdapter,
                                                  Xer.Cqrs.EventStack.Resolvers.IContainerAdapter
         {
@@ -195,6 +220,10 @@ namespace Api
             }
         }
 
+        #endregion Container Adapter
+
+        #region Logging Event Publisher
+
         public class LoggingEventPublisher : EventPublisher
         {
             public LoggingEventPublisher(IEventHandlerResolver resolver, ILoggerFactory loggerFactory) : base(resolver)
@@ -214,5 +243,7 @@ namespace Api
                 };
             }
         }
+
+        #endregion Logging Event Publisher
     }
 }

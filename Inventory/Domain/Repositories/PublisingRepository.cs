@@ -6,7 +6,7 @@ using Xer.Cqrs.EventStack;
 
 namespace Domain.Repositories
 {
-    public class PublisingRepository<T, TId> : IRepository<T, TId> where T : IEventSource
+    public class PublisingRepository<T, TId> : IRepository<T, TId> where T : IEventOriginator
     {
         private readonly IRepository<T, TId> _baseRepository;
         private readonly IEventPublisher _eventPublisher;

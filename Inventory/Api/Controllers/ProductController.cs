@@ -33,8 +33,8 @@ namespace Api.Controllers
                 includeNotForSale = false;
             }
 
-            ProductListViewModel result = await _queryDispatcher.DispatchAsync<GetAllProductsQuery, ProductListViewModel>(
-                                                    new GetAllProductsQuery(includeNotForSale.Value));
+            ProductListViewModel result = await _queryDispatcher.DispatchAsync<QueryProductListView, ProductListViewModel>(
+                                                    new QueryProductListView(includeNotForSale.Value));
                                                     
             return Ok(result);
         }
@@ -42,7 +42,7 @@ namespace Api.Controllers
         [HttpGet("{productId}")]
         public async Task<IActionResult> GetProduct(Guid productId)
         {
-            ProductViewModel result = await _queryDispatcher.DispatchAsync<GetProductByIdQuery, ProductViewModel>(new GetProductByIdQuery(productId));
+            ProductViewModel result = await _queryDispatcher.DispatchAsync<QueryProductView, ProductViewModel>(new QueryProductView(productId));
             return Ok(result);
         }
 

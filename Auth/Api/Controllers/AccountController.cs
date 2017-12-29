@@ -65,7 +65,16 @@ namespace Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Accounts([FromBody]RegisterDto model)
         {
-            await _commandDispatcher.DispatchAsync(new RegisterUserCommand(Guid.NewGuid(), model.Username, model.Password));
+            try
+            {
+                await _commandDispatcher.DispatchAsync(new RegisterUserCommand(Guid.NewGuid(), model.Username, model.Password));
+            }
+            catch(PasswordDidNotMeetRequirementsException ex)
+            {
+                ex.Failures.ToList().ForEach(failure => ModelState.AddModelError("Password", failure.ErrorMessage));
+
+                return BadRequest(ModelState);
+            }
 
             return Accepted();
         }

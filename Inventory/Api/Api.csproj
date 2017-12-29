@@ -14,7 +14,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="1.1.0" />
     <PackageReference Include="Xer.Cqrs.CommandStack" Version="0.1.1" />
     <PackageReference Include="Xer.Cqrs.EventStack" Version="0.1.1" />
-    <PackageReference Include="Xer.Cqrs.QueryStack" Version="0.1.0" />
+    <PackageReference Include="Xer.Cqrs.QueryStack" Version="0.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,7 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Domain\Domain.csproj" />
     <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="..\ViewModels\ViewModels.csproj" />
+    <ProjectReference Include="..\MaterializedViews\MaterializedViews.csproj" />
   </ItemGroup>
 
 </Project>

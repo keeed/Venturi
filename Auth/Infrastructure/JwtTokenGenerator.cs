@@ -24,11 +24,13 @@ namespace Infrastructure
 
         public Token GenerateToken(User user)
         {
+            UserState state = user.GetCurrentState();
+
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Username),
+                new Claim(JwtRegisteredClaimNames.Sub, state.Username),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.NameId, user.Id.ToString())
+                new Claim(JwtRegisteredClaimNames.NameId, state.Id.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey));

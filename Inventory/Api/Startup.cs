@@ -195,13 +195,13 @@ namespace Api
         private void RegisterQueryHandlers(IServiceCollection services)
         {
             // Register all query handlers.
-            services.AddTransient<IQueryAsyncHandler<GetAllProductsQuery, ProductListViewModel>, GetAllProductsQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetProductByIdQuery, ProductViewModel>, GetProductByIdQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetProductsInCategoryQuery, ProductCategoryViewModel>, GetProductsInCatalogQueryHandler>();
-            services.AddTransient<IQueryAsyncHandler<GetAllProductCategoriesQuery, ProductCategoryListViewModel>, GetAllProductCategoriesQueryHandler>();
+            services.AddTransient<IQueryAsyncHandler<QueryProductListView, ProductListViewModel>, QueryProductListViewHandler>();
+            services.AddTransient<IQueryAsyncHandler<QueryProductView, ProductViewModel>, QueryProductViewHandler>();
+            services.AddTransient<IQueryAsyncHandler<QueryProductCategoryView, ProductCategoryViewModel>, QueryProductCategoryViewHandler>();
+            services.AddTransient<IQueryAsyncHandler<QueryProductCategoryListView, ProductCategoryListViewModel>, QueryProductCategoryListViewHandler>();
                         
             // To enable event publisher to resolve event handlers from the ASP.NET core IoC container.
-            services.AddSingleton<IQueryHandlerResolver, ContainerQueryHandlerResolver>();
+            services.AddSingleton<IQueryHandlerResolver, ContainerQueryAsyncHandlerResolver>();
             services.AddSingleton<Xer.Cqrs.QueryStack.Resolvers.IContainerAdapter, AspNetCoreServiceProviderAdapter>();
 
             // Register query dispatcher.
@@ -241,7 +241,7 @@ namespace Api
                     string errorMessage = $"------------------------------------------------------" + 
                                           Environment.NewLine + 
 
-                                          $"{e.GetType().Name} have failed processing." + 
+                                          $"{e.GetType().Name} has failed processing." + 
 
                                           Environment.NewLine +
                                           $"------------------------------------------------------";

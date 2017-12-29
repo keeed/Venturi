@@ -6,7 +6,7 @@ using Xer.Cqrs.EventStack;
 
 namespace Domain
 {
-    public class Product : IEventSource, IStateContainer<ProductState> // Aggregate
+    public class Product : IEventOriginator, IStateContainer<ProductState> // Aggregate
     {
         // These events will be published when entity is saved using PublishingRepository
         private readonly List<IEvent> _events = new List<IEvent>();
@@ -23,8 +23,8 @@ namespace Domain
 
         #region IEventSource Implementation
 
-        IEnumerable<IEvent> IEventSource.GetEvents() => _events.AsReadOnly();
-        void IEventSource.ClearEvents() => _events.Clear();
+        IEnumerable<IEvent> IEventOriginator.GetEvents() => _events.AsReadOnly();
+        void IEventOriginator.ClearEvents() => _events.Clear();
 
         #endregion IEventSource Implementation
 

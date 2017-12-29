@@ -25,8 +25,8 @@ namespace Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllCategories()
         {
-            ProductCategoryListViewModel result = await _queryDispatcher.DispatchAsync<GetAllProductCategoriesQuery, ProductCategoryListViewModel>(
-                new GetAllProductCategoriesQuery());
+            ProductCategoryListViewModel result = await _queryDispatcher.DispatchAsync<QueryProductCategoryListView, ProductCategoryListViewModel>(
+                new QueryProductCategoryListView());
 
             return Ok(result);
         }
@@ -34,8 +34,8 @@ namespace Api.Controllers
         [HttpGet("{categoryName}")]
         public async Task<IActionResult> GetProductsInCategory(string categoryName)
         {
-            ProductCategoryViewModel result = await _queryDispatcher.DispatchAsync<GetProductsInCategoryQuery, ProductCategoryViewModel>(
-                new GetProductsInCategoryQuery(categoryName));
+            ProductCategoryViewModel result = await _queryDispatcher.DispatchAsync<QueryProductCategoryView, ProductCategoryViewModel>(
+                new QueryProductCategoryView(categoryName));
 
             return Ok(result);
         }

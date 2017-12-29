@@ -6,26 +6,26 @@ using Xer.Cqrs.QueryStack;
 
 namespace ViewModels.Queries
 {
-    public class GetAllProductsQuery : IQuery<ProductListViewModel>
+    public class QueryProductListView : IQuery<ProductListViewModel>
     {
         public bool IncludeNotForSaleProducts { get; }
 
-        public GetAllProductsQuery(bool includeNotForSale = true)
+        public QueryProductListView(bool includeNotForSale = true)
         {
             IncludeNotForSaleProducts = includeNotForSale;
         }
     }
 
-    public class GetAllProductsQueryHandler : IQueryAsyncHandler<GetAllProductsQuery, ProductListViewModel>
+    public class QueryProductListViewHandler : IQueryAsyncHandler<QueryProductListView, ProductListViewModel>
     {
         private readonly IMongoCollection<ProductViewModel> _productViewColection;
 
-        public GetAllProductsQueryHandler(QueryMongoDatabase mongoDb)
+        public QueryProductListViewHandler(QueryMongoDatabase mongoDb)
         {
             _productViewColection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
-        public async Task<ProductListViewModel> HandleAsync(GetAllProductsQuery query, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<ProductListViewModel> HandleAsync(QueryProductListView query, CancellationToken cancellationToken = default(CancellationToken))
         {
             if(!query.IncludeNotForSaleProducts)
             {

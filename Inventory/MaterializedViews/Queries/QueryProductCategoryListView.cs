@@ -6,21 +6,21 @@ using Xer.Cqrs.QueryStack;
 
 namespace ViewModels.Queries
 {
-    public class GetAllProductCategoriesQuery : IQuery<ProductCategoryListViewModel>
+    public class QueryProductCategoryListView : IQuery<ProductCategoryListViewModel>
     {
         
     }
 
-    public class GetAllProductCategoriesQueryHandler : IQueryAsyncHandler<GetAllProductCategoriesQuery, ProductCategoryListViewModel>
+    public class QueryProductCategoryListViewHandler : IQueryAsyncHandler<QueryProductCategoryListView, ProductCategoryListViewModel>
     {
         private readonly IMongoCollection<ProductCategoryViewModel> _categoryViewCollection;
 
-        public GetAllProductCategoriesQueryHandler(QueryMongoDatabase mongoDb)
+        public QueryProductCategoryListViewHandler(QueryMongoDatabase mongoDb)
         {
             _categoryViewCollection = mongoDb.GetCollection<ProductCategoryViewModel>(nameof(ProductCategoryViewModel));
         }
 
-        public async Task<ProductCategoryListViewModel> HandleAsync(GetAllProductCategoriesQuery query, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<ProductCategoryListViewModel> HandleAsync(QueryProductCategoryListView query, CancellationToken cancellationToken = default(CancellationToken))
         {
             List<ProductCategoryViewModel> categories = await _categoryViewCollection.AsQueryable().ToListAsync(cancellationToken);
             return new ProductCategoryListViewModel()

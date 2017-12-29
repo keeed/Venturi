@@ -6,26 +6,26 @@ using Xer.Cqrs.QueryStack;
 
 namespace ViewModels.Queries
 {
-    public class GetProductByIdQuery : IQuery<ProductViewModel>
+    public class QueryProductView : IQuery<ProductViewModel>
     {
         public Guid ProductId { get; }
 
-        public GetProductByIdQuery(Guid productId)
+        public QueryProductView(Guid productId)
         {
             ProductId = productId;
         }
     }
 
-    public class GetProductByIdQueryHandler : IQueryAsyncHandler<GetProductByIdQuery, ProductViewModel>
+    public class QueryProductViewHandler : IQueryAsyncHandler<QueryProductView, ProductViewModel>
     {
         private readonly IMongoCollection<ProductViewModel> _productViewCollection;
 
-        public GetProductByIdQueryHandler(QueryMongoDatabase mongoDb)
+        public QueryProductViewHandler(QueryMongoDatabase mongoDb)
         {
             _productViewCollection = mongoDb.GetCollection<ProductViewModel>(nameof(ProductViewModel));
         }
 
-        public async Task<ProductViewModel> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<ProductViewModel> HandleAsync(QueryProductView query, CancellationToken cancellationToken = default(CancellationToken))
         {
             var filter = Builders<ProductViewModel>.Filter.Eq(p => p.ProductId, query.ProductId);
             var findResult = await _productViewCollection.FindAsync(filter, null, cancellationToken).ConfigureAwait(false);
