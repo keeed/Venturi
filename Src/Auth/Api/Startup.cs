@@ -231,7 +231,8 @@ namespace Api
                 ILogger logger = loggerFactory.CreateLogger(nameof(LoggingEventPublisher));
                 OnError += (e, ex) =>
                 {
-                    string errorMessage = $"------------------------------------------------------" +
+                    string errorMessage = 
+                        $"------------------------------------------------------" +
                         Environment.NewLine +
 
                         $"{e.GetType().Name} have failed processing." +

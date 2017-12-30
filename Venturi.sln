@@ -5,23 +5,23 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Inventory", "Inventory", "{164642BC-E7B9-4C7F-A3B5-1EA4EFA63892}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Inventory\Api\Api.csproj", "{AAF1C1C7-3D23-4B9D-8AC4-2A79D7B8265F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Src\Inventory\Api\Api.csproj", "{AAF1C1C7-3D23-4B9D-8AC4-2A79D7B8265F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Inventory\Domain\Domain.csproj", "{2829D368-685B-4FCE-A2C0-8F58FCFECB34}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Src\Inventory\Domain\Domain.csproj", "{2829D368-685B-4FCE-A2C0-8F58FCFECB34}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UI.Web", "Inventory\UI.Web\UI.Web.csproj", "{77106AEB-E2EF-4421-8A80-9D174E9FEFC3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UI.Web", "Src\Inventory\UI.Web\UI.Web.csproj", "{77106AEB-E2EF-4421-8A80-9D174E9FEFC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterializedViews", "Inventory\MaterializedViews\MaterializedViews.csproj", "{433A1979-02D2-4B09-B188-033DCAEDA943}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterializedViews", "Src\Inventory\MaterializedViews\MaterializedViews.csproj", "{433A1979-02D2-4B09-B188-033DCAEDA943}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Inventory\Infrastructure\Infrastructure.csproj", "{D2E98A1B-1A24-45EC-B893-951D7D08A5BD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Src\Inventory\Infrastructure\Infrastructure.csproj", "{D2E98A1B-1A24-45EC-B893-951D7D08A5BD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Auth", "Auth", "{A5DAE475-4056-4409-B327-D80828B6D54C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Auth\Api\Api.csproj", "{5F49F876-5C51-4227-8331-E60D3151EF85}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Src\Auth\Api\Api.csproj", "{5F49F876-5C51-4227-8331-E60D3151EF85}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Auth\Domain\Domain.csproj", "{471B68E0-A952-4106-A4E6-706153019C27}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Src\Auth\Domain\Domain.csproj", "{471B68E0-A952-4106-A4E6-706153019C27}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Auth\Infrastructure\Infrastructure.csproj", "{E0718028-F286-4163-9863-749495CB4E8B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Src\Auth\Infrastructure\Infrastructure.csproj", "{E0718028-F286-4163-9863-749495CB4E8B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
