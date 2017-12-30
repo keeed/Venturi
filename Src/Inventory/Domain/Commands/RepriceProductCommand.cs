@@ -20,16 +20,16 @@ namespace Domain.Commands
 
     public class RepriceProductCommandHandler : ICommandAsyncHandler<RepriceProductCommand>
     {
-        private readonly IRepository<Product, ProductId> _productRepository;
+        private readonly IProductRepository _productRepository;
 
-        public RepriceProductCommandHandler(IRepository<Product, ProductId> productRepository)
+        public RepriceProductCommandHandler(IProductRepository productRepository)
         {
             _productRepository = productRepository;
         }
 
         public async Task HandleAsync(RepriceProductCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            Product product = await _productRepository.GetProductByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
             if (product == null)
             {
                 throw new InvalidOperationException("Product not found.");

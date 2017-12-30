@@ -18,16 +18,16 @@ namespace Domain.Commands
 
     public class UnregisterProductCommandHandler : ICommandAsyncHandler<UnregisterProductCommand>
     {
-        private readonly IRepository<Product, ProductId> _productRepository;
+        private readonly IProductRepository _productRepository;
 
-        public UnregisterProductCommandHandler(IRepository<Product, ProductId> productRepository)
+        public UnregisterProductCommandHandler(IProductRepository productRepository)
         {
             _productRepository = productRepository;
         }
 
         public async Task HandleAsync(UnregisterProductCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            Product product = await _productRepository.GetProductByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
             if (product == null)
             {
                 throw new InvalidOperationException("Product not found.");

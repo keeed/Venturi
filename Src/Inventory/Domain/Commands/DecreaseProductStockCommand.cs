@@ -9,33 +9,33 @@ namespace Domain.Commands
     public class DecreaseProductStockCommand : Command
     {
         public Guid ProductId { get; }
-        public int AmountToDecrease { get; }
+        public int Quantity { get; }
 
         public DecreaseProductStockCommand(Guid productId, int amountToDecrease)
         {
             ProductId = productId;
-            AmountToDecrease = amountToDecrease;
+            Quantity = amountToDecrease;
         }
     }
 
     public class DecreaseProductStockCommandHandler : ICommandAsyncHandler<DecreaseProductStockCommand>
     {
-        private readonly IRepository<Product, ProductId> _productRepository;
+        private readonly IProductRepository _productRepository;
 
-        public DecreaseProductStockCommandHandler(IRepository<Product, ProductId> productRepository)
+        public DecreaseProductStockCommandHandler(IProductRepository productRepository)
         {
             _productRepository = productRepository;
         }
 
         public async Task HandleAsync(DecreaseProductStockCommand command, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Product product = await _productRepository.GetByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
+            Product product = await _productRepository.GetProductByIdAsync(new ProductId(command.ProductId), cancellationToken).ConfigureAwait(false);
             if (product == null)
             {
                 throw new InvalidOperationException("Product not found.");
             }
             
-            product.DecreaseProductStock(command.AmountToDecrease);
+            product.DecreaseProductStock(command.Quantity);
 
             await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
         }

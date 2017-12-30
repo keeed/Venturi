@@ -27,9 +27,9 @@ namespace Domain.Commands
 
     public class RegisterNewProductCommandHandler : ICommandAsyncHandler<RegisterNewProductCommand>
     {
-        private readonly IRepository<Product, ProductId> _productRepository;
+        private readonly IProductRepository _productRepository;
 
-        public RegisterNewProductCommandHandler(IRepository<Product, ProductId> productRepository)
+        public RegisterNewProductCommandHandler(IProductRepository productRepository)
         {
             _productRepository = productRepository;
         }

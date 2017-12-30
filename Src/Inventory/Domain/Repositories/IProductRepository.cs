@@ -4,8 +4,9 @@ using System.Threading.Tasks;
 
 namespace Domain.Repositories
 {
-    public interface IProductRepository : IRepository<Product, ProductId>
+    public interface IProductRepository
     {
-        Task DeleteByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken));
+        Task<Product> GetProductByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken));
+        Task SaveAsync(Product product, CancellationToken ct = default(CancellationToken));
     }
 }

@@ -21,29 +21,6 @@ namespace Domain
 
         public ProductId Id => _productId;
 
-        #region IEventSource Implementation
-
-        IEnumerable<IEvent> IEventOriginator.GetEvents() => _events.AsReadOnly();
-        void IEventOriginator.ClearEvents() => _events.Clear();
-
-        #endregion IEventSource Implementation
-
-        #region IStateContainer Implementation
-
-        public ProductState GetCurrentState()
-        {
-            return new ProductState(_productId,
-                                    _name,
-                                    _description,
-                                    _price,
-                                    _stock,
-                                    _categories,
-                                    _isForSale,
-                                    _isUnregistered);
-        }
-
-        #endregion IStateContainer Implementation
-
         public Product(ProductId productId,
                        string productName,
                        string productDescription,
@@ -110,6 +87,31 @@ namespace Domain
             _isUnregistered = isUnregistered;
         }
 
+        #region IEventSource Implementation
+
+        IEnumerable<IEvent> IEventOriginator.GetEvents() => _events.AsReadOnly();
+        void IEventOriginator.ClearEvents() => _events.Clear();
+
+        #endregion IEventSource Implementation
+
+        #region IStateContainer Implementation
+
+        public ProductState GetCurrentState()
+        {
+            return new ProductState(_productId,
+                                    _name,
+                                    _description,
+                                    _price,
+                                    _stock,
+                                    _categories,
+                                    _isForSale,
+                                    _isUnregistered);
+        }
+
+        #endregion IStateContainer Implementation
+
+        #region Methods
+        
         public void IncreaseProductStock(int amountToIncrease)
         {
             _stock = _stock.IncreaseQuantity(amountToIncrease);
@@ -170,6 +172,13 @@ namespace Domain
             _isUnregistered = true; // Unregistered products could be manually cleaned up from DB or could be deleted by a background process.
             _events.Add(new ProductUnregisteredEvent(Id.Value));
         }
+
+        public bool HasQuantityInStock(int quantity)
+        {
+            return _stock.Quantity >= quantity;
+        }
+
+        #endregion Methods
     }
 
     #region Product State

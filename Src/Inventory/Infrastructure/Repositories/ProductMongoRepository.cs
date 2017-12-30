@@ -19,7 +19,7 @@ namespace Infrastructure.Repositories
             _productCollection = mongoDb.GetCollection<ProductMongoDocument>(nameof(Product));
         }
 
-        public async Task<Product> GetByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
+        public async Task<Product> GetProductByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
         {
             if (productId == null)
             {

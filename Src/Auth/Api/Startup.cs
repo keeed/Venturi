@@ -59,10 +59,9 @@ namespace Api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            RegisterAuthentication(services);
-
-            // ===== Add MVC ========
             services.AddMvc();
+            
+            RegisterAuthentication(services);
 
             RegisterDomainServices(services);
 
@@ -161,10 +160,12 @@ namespace Api
         private void RegisterHostedServices(IServiceCollection services)
         {
             // Hosted services.
-            services.AddSingleton<IHostedService>(s =>
-                new LockoutReleaseHostedService(s.GetRequiredService<IUserRepository>(), 
-                                                LockoutReleaseServiceInterval)
+            services.AddTransient<UsersLockoutTimeElapsedHostedEventHandler>(s => 
+                new UsersLockoutTimeElapsedHostedEventHandler(s.GetRequiredService<IUserRepository>(), 
+                                                              LockoutReleaseServiceInterval)
             );
+
+            services.AddSingleton<IHostedService, LockoutReleaseHostedService>();
         }
 
         private void RegisterCommandHandlers(IServiceCollection services)

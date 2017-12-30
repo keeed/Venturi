@@ -71,7 +71,7 @@ namespace Api.Controllers
         }
 
         [HttpPut("{productId}")]
-        public async Task<IActionResult> UpdateProduct([FromHeader]string operation, [FromRoute]Guid productId, [FromBody]JObject jsonPayload)
+        public async Task<IActionResult> UpdateProduct([FromRoute]Guid productId, [FromHeader]string operation, [FromBody]JObject payload)
         {
             if (!ModelState.IsValid)
             {
@@ -92,17 +92,42 @@ namespace Api.Controllers
 
                 case ProductOperationConstants.RepriceProduct:
                 {
-                    return await InternalRepriceProduct(productId, jsonPayload);
+                    return await InternalRepriceProduct(productId, payload);
                 }
 
                 case ProductOperationConstants.AddProductToCategory:
                 {
-                    return await InternalAddProductToCategory(productId, jsonPayload);
+                    return await InternalAddProductToCategory(productId, payload);
                 }
 
                 case ProductOperationConstants.RemoveProductFromCategory:
                 {
-                    return await InternalRemoveProductFromCategory(productId, jsonPayload);
+                    return await InternalRemoveProductFromCategory(productId, payload);
+                }
+
+                default:
+                    return BadRequest($"{operation} operation is not supported. Check 'operation' HTTP header.");
+            }
+        }
+
+        [HttpPut("{productId}/stock")]
+        public async Task<IActionResult> UpdateProductStock([FromRoute]Guid productId, [FromHeader]string operation, [FromBody]JObject payload)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            switch (operation)
+            {
+                case ProductOperationConstants.IncreaseProductStock:
+                {
+                    return await InternalIncreaseProductStock(productId, payload);
+                }
+
+                case ProductOperationConstants.DecreaseProductStock:
+                {
+                    return await InternalDecreaseProductStock(productId, payload);
                 }
 
                 default:
@@ -166,6 +191,32 @@ namespace Api.Controllers
             await _commandDispatcher.DispatchAsync(new RemoveProductFromCategoryCommand(productId, categoryNameToken.ToObject<string>()));
             return Ok();
         }
+
+        private async Task<IActionResult> InternalIncreaseProductStock(Guid productId, JObject jsonPayload)
+        {
+            JToken quantityToken;
+
+            if(!jsonPayload.TryGetValue("Quantity", StringComparison.OrdinalIgnoreCase, out quantityToken))
+            {
+                return BadRequest($"Quantity is required.");
+            }
+
+            await _commandDispatcher.DispatchAsync(new IncreaseProductStockCommand(productId, quantityToken.ToObject<int>()));
+            return Ok();
+        }
+
+        private async Task<IActionResult> InternalDecreaseProductStock(Guid productId, JObject jsonPayload)
+        { 
+            JToken quantityToken;
+
+            if(!jsonPayload.TryGetValue("Quantity", StringComparison.OrdinalIgnoreCase, out quantityToken))
+            {
+                return BadRequest($"Quantity is required.");
+            }
+
+            await _commandDispatcher.DispatchAsync(new DecreaseProductStockCommand(productId, quantityToken.ToObject<int>()));
+            return Ok();
+        }
     }
 
     #region DTOs
@@ -201,11 +252,18 @@ namespace Api.Controllers
 
     public class ProductOperationConstants
     {
+        // Product
         public const string MarkProductAsForSale = nameof(MarkProductAsForSale);
         public const string MarkProductAsNotForSale = nameof(MarkProductAsNotForSale);
         public const string RepriceProduct = nameof(RepriceProduct);
+
+        // Category
         public const string AddProductToCategory = nameof(AddProductToCategory);
         public const string RemoveProductFromCategory = nameof(RemoveProductFromCategory);
+
+        // Stock
+        public const string IncreaseProductStock = nameof(IncreaseProductStock);
+        public const string DecreaseProductStock = nameof(DecreaseProductStock);
     }
 
     #endregion DTOs

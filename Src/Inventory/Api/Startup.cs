@@ -2,19 +2,24 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Api.HostedServices;
 using Domain;
 using Domain.Commands;
 using Domain.DomainEvents;
+using Domain.IntegrationEvents.Orders;
 using Domain.Repositories;
 using Infrastructure;
+using Infrastructure.Integration.Orders;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.PlatformAbstractions;
@@ -37,6 +42,11 @@ namespace Api
 {
     public class Startup
     {
+        public IConfiguration Configuration { get; }
+        public IConfigurationSection WarehouseConfiguration { get; }
+        public string JwtIssuer { get; }
+        public string JwtKey { get; }
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -51,72 +61,19 @@ namespace Api
             JwtKey = WarehouseConfiguration["Jwt:Key"];
         }
 
-        public IConfiguration Configuration { get; }
-
-        public IConfigurationSection WarehouseConfiguration { get; }
-        public string JwtIssuer { get; }
-        public string JwtKey { get; }
-
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
             services.AddSingleton(Configuration);
-            
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                
-            }).AddJwtBearer(cfg =>
-            {
-                cfg.RequireHttpsMetadata = false;
-                cfg.SaveToken = true;
-                cfg.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidIssuer = JwtIssuer,
-                    ValidateAudience = true,
-                    ValidAudience = JwtIssuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
-                    ClockSkew = TimeSpan.Zero // remove delay of token when expire
-                };
-            });
 
-            services.AddSingleton<InventoryMongoDatabase>(s =>
-            {
-                var mongoClient = new MongoClient(WarehouseConfiguration["InventoryDatabaseConnectionString"]);
-                return new InventoryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["InventoryDatabaseName"]));
-            });
-
-            services.AddSingleton<QueryMongoDatabase>(s =>
-            {
-                var mongoClient = new MongoClient(WarehouseConfiguration["QueryDatabaseConnectionString"]);
-                return new QueryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["QueryDatabaseName"]));
-            });
-
-            // Domain/Write side.
-            RegisterDomainRepositories(services);
-            RegisterCommandHandlers(services);
-            RegisterEventHandlers(services);
-
-            // Read side.
-            RegisterQueryHandlers(services);
+            RegisterAuthentication(services);
+            RegisterDomainServices(services);
 
             // Swagger.
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new Info { Title = "Venturi Inventory", Version = "v1" });
-                
-                c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new ApiKeyScheme
-                {
-                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
-                    Name = "Authorization",
-                    In = "header",
-                    Type = "apiKey"
-                });
-            });
+            RegisterSwagger(services);
+
+            return services.BuildServiceProvider();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -142,12 +99,90 @@ namespace Api
             app.UseMvc();
         }
 
+        private void RegisterAuthentication(IServiceCollection services)
+        {
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+            }).AddJwtBearer(cfg =>
+            {
+                cfg.RequireHttpsMetadata = false;
+                cfg.SaveToken = true;
+                cfg.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = JwtIssuer,
+                    ValidateAudience = true,
+                    ValidAudience = JwtIssuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                    ClockSkew = TimeSpan.Zero // remove delay of token when expire
+                };
+            });
+        }
+
+        private static void RegisterSwagger(IServiceCollection services)
+        {
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Info { Title = "Venturi Inventory", Version = "v1" });
+
+                c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new ApiKeyScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+                    Name = "Authorization",
+                    In = "header",
+                    Type = "apiKey"
+                });
+            });
+        }
+
+        private void RegisterDomainServices(IServiceCollection services)
+        {
+            services.AddSingleton<InventoryMongoDatabase>(s =>
+            {
+                var mongoClient = new MongoClient(WarehouseConfiguration["InventoryDatabaseConnectionString"]);
+                return new InventoryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["InventoryDatabaseName"]));
+            });
+
+            services.AddSingleton<QueryMongoDatabase>(s =>
+            {
+                var mongoClient = new MongoClient(WarehouseConfiguration["QueryDatabaseConnectionString"]);
+                return new QueryMongoDatabase(mongoClient.GetDatabase(WarehouseConfiguration["QueryDatabaseName"]));
+            });
+
+            // Domain/Write side.
+            RegisterHostedServices(services);
+            RegisterDomainRepositories(services);
+            RegisterCommandHandlers(services);
+            RegisterEventHandlers(services);
+
+            // Read side.
+            RegisterQueryHandlers(services);
+        }
+
+        private void RegisterHostedServices(IServiceCollection services)
+        {
+            services.AddTransient<OrderPlacedHostedEventHandler>();
+            services.AddTransient<IOrderStockConfirmationSender, OrderStockConfirmationQueueSender>();
+
+            services.AddTransient<OrderPlacedEventSource>(s =>
+                new OrderPlacedEventQueueSource(TimeSpan.FromMilliseconds(100))
+            );
+
+            services.AddTransient<IHostedService, OrderReceiverHostedService>();
+        }
+
         private void RegisterDomainRepositories(IServiceCollection services)
         {
-            services.AddScoped<IRepository<Product, ProductId>>(s => 
+            services.AddScoped<IProductRepository>(s => 
             {
-                return new PublisingRepository<Product, ProductId>(new ProductMongoRepository(s.GetRequiredService<InventoryMongoDatabase>()),
-                                                                   s.GetRequiredService<IEventPublisher>());
+                // return new PublisingProductRepository(new ProductMongoRepository(s.GetRequiredService<InventoryMongoDatabase>()),
+                //                                       s.GetRequiredService<IEventPublisher>());
+                return new PublishingProductRepository(new ProductInMemoryRepository(),
+                                                      s.GetRequiredService<IEventPublisher>());
             });
         }
 

@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace Infrastructure.Repositories
 {
-    public class InventoryMongoDatabase
+    public class InventoryMongoDatabase : IMongoDatabase
     {
         private readonly IMongoDatabase _mongoDatabase;
 

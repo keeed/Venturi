@@ -11,7 +11,7 @@ namespace Domain.Repositories
     {
         private readonly List<Product> _products = new List<Product>();
 
-        public Task<Product> GetByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
+        public Task<Product> GetProductByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
         {
             if (productId == null)
             {
@@ -19,7 +19,13 @@ namespace Domain.Repositories
             }
 
             var storedProduct = _products.FirstOrDefault(p => p.Id == productId);
+            if (storedProduct == null)
+            {
+                return Task.FromResult<Product>(null);
+            }
+
             var state = storedProduct.GetCurrentState();
+
              // Make a copy to return as result.
             return Task.FromResult(new Product(state));
         }
@@ -35,13 +41,6 @@ namespace Domain.Repositories
 
             _products.Add(product);
 
-            return Task.CompletedTask;
-        }
-        
-        public Task DeleteByIdAsync(ProductId productId, CancellationToken ct = default(CancellationToken))
-        {
-            _products.RemoveAll(p => p.Id == productId);
-            
             return Task.CompletedTask;
         }
     }
